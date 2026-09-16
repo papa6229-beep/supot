@@ -422,9 +422,10 @@ body.few-mode .meta .legend{display:none}
 .mnote{border-radius:10px; padding:10px 14px; font-size:14.5px; line-height:1.55; margin-bottom:10px}
 .mnote.grp{background:#eef4ff; color:#1d3f73}
 .mnote.lvl{background:#f3eefc; color:#47307a}
-.mbody{border:1px solid var(--line); border-radius:10px; padding:4px 16px 8px; margin:6px 0 12px}
-.msub{margin:10px 0 4px; font-size:13px; font-weight:700; color:var(--ink-3)}
-.msub small{font-weight:400; margin-left:6px}
+.mbody{border:1px solid var(--line); border-radius:10px; padding:0 16px; margin:6px 0 12px}
+.mbody summary{cursor:pointer; padding:12px 0; font-size:14.5px; font-weight:700; color:var(--ink-2)}
+.mbody summary small{font-weight:400; color:var(--ink-4); margin-left:6px}
+.mbody[open]{padding-bottom:8px}
 .mrow{display:grid; grid-template-columns:150px 1fr; gap:12px; padding:9px 0; border-top:1px solid #f0eee9}
 .mrow:first-of-type{border-top:0}
 .mrow .k{font-size:14px; color:var(--ink-3)}
@@ -434,4 +435,42 @@ body.few-mode .meta .legend{display:none}
 @media (max-width:700px){
   .mrow{grid-template-columns:1fr; gap:2px}
   .mgrade{margin-left:0}
+}
+
+/* 문서 판단 ↔ 데이터 */
+.mtag.off{outline:1.5px solid #e08a00}
+.mflag{background:#fff1dd; border:1px solid #f2c078; color:#7a4300; border-radius:10px;
+       padding:11px 14px; font-size:15px; line-height:1.55; margin-bottom:12px}
+.msec{border:1px solid var(--line); border-radius:12px; padding:14px 16px 12px; margin-bottom:12px}
+.msec h4{margin:0 0 8px; font-size:15px; font-weight:800; color:var(--ink)}
+.crow{display:grid; grid-template-columns:92px 1fr; gap:12px; align-items:start; padding:10px 0; border-top:1px solid #f0eee9}
+.crow:first-of-type{border-top:0}
+.ck{display:inline-block; text-align:center; font-size:13px; font-weight:800; padding:4px 0; border-radius:7px; width:92px}
+.ck.ok{background:#dff3e6; color:#17693a}
+.ck.no{background:#fde4e1; color:#b3261e}
+.ck.na{background:#f1efea; color:#7a808a; font-weight:600}
+.csay{font-size:16px; font-weight:700; color:var(--ink); line-height:1.45}
+.cdet{font-size:14px; color:var(--ink-2); margin-top:3px; line-height:1.5}
+.cdet b{color:var(--ink)}
+.mhint{margin:8px 0 0; font-size:12.5px; color:var(--ink-4)}
+.prow{display:grid; grid-template-columns:150px 90px 1fr 150px; gap:12px; align-items:center; padding:9px 0;
+      border-top:1px solid #f0eee9}
+.prow:first-of-type{border-top:0}
+.prow .pk{font-size:14px; color:var(--ink-2)}
+.prow .pv{font-size:16px; font-weight:800; text-align:right; font-variant-numeric:tabular-nums}
+.prow .pbar{position:relative; height:8px; border-radius:99px;
+            background:linear-gradient(90deg,#eceae4 0 33%,#e3e1da 33% 67%,#eceae4 67%)}
+.prow .pbar i{position:absolute; top:50%; width:14px; height:14px; margin:-7px 0 0 -7px; border-radius:50%;
+              background:var(--accent); border:2px solid #fff; box-shadow:0 0 0 1px rgba(0,0,0,.3)}
+.prow .pw{font-size:13.5px; color:var(--ink-3); white-space:nowrap}
+.prow .pw.good{color:#17693a; font-weight:700}
+.mtake{margin:10px 0 4px; font-size:15px; color:var(--ink); background:#f3f8f4; border-radius:8px; padding:9px 12px}
+.mpeer{margin-top:8px; font:inherit; font-size:14px; font-weight:700; cursor:pointer; color:var(--accent);
+       background:var(--surface); border:1px solid var(--accent); border-radius:8px; padding:7px 14px}
+.mpeer:hover{background:var(--accent-soft)}
+@media (max-width:700px){
+  .crow{grid-template-columns:1fr; gap:6px}
+  .prow{grid-template-columns:1fr auto; gap:4px 10px}
+  .prow .pbar{grid-column:1 / -1; order:3}
+  .prow .pw{grid-column:1 / -1; order:4}
 }

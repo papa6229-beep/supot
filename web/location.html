@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 — supot</title>
-<link rel="stylesheet" href="styles.css?v=27">
+<link rel="stylesheet" href="styles.css?v=28">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -130,7 +130,7 @@ const kindLabel = k => (ACA_KIND[k] && ACA_KIND[k].label) || k;
 
 const indent = m => m.sub ? '  '.repeat(m.sub) + '└ ' : '';
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '27';
+const V = '28';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -227,7 +227,9 @@ function mktPass(r){
 function mktTag(r){
   const m = mktOf(r);
   if (!m) return '';
-  return '<span class="mtag f' + m.code[0] + '" title="' + MARKET.types[m.code].name + '">' + m.code + '</span>';
+  const off = checkBase().fails[keyOf(r)];
+  return '<span class="mtag f' + m.code[0] + (off ? ' off' : '') + '" title="' + MARKET.types[m.code].name +
+         (off ? ' · 문서 판단과 데이터가 다릅니다' : '') + '">' + m.code + (off ? ' ⚠' : '') + '</span>';
 }
 
 function fillMarket(){
@@ -254,6 +256,93 @@ function fillMarket(){
   sel.onchange = e => { state.mkt = e.target.value; state.page = 0; render(); };
 }
 
+// ---------- 문서 판단을 우리 데이터로 맞춰보기 ----------
+// 400개 동을 줄 세워 위 ⅓은 '많은 편', 아래 ⅓은 '적은 편', 가운데는 '보통'.
+// 점수를 매기지 않고, 문서가 주장한 쪽에 있는지만 본다. 보통은 틀렸다고 보지 않는다.
+const CHECK_METRIC = {
+  pop:   {l: '초4~중3 아이',           v: r => r.pop_target,                                   f: v => fmt(v) + '명'},
+  eng:   {l: '영어학원',               v: r => r.eng_total,                                    f: v => fmt(v) + '곳'},
+  per1k: {l: '아이 천 명당 영어학원',   v: r => r.pop_target ? r.eng_total / r.pop_target * 1000 : null,
+                                                                                              f: v => v.toFixed(1) + '곳'},
+  // 학원이 몇 곳 안 되면 비율이 한 곳에 휘둘린다.
+  new:   {l: '최근 3년에 생긴 학원 비율', v: r => r.eng_total >= 5 ? r.eng_new3y / r.eng_total : null,
+                                                                                              f: v => Math.round(v * 100) + '%',
+          none: '영어학원이 5곳 미만이라 비율로 보기 어렵습니다'},
+  apt:   {l: '아파트 평당 매매가',      v: r => { const e = ESTATE && ESTATE.dongs[keyOf(r)]; return e && e.apt ? e.apt.per_m2 * 3.3 : null; },
+                                                                                              f: v => fmt(Math.round(v / 10000)) + '만원',
+          none: '이 지역은 아파트 거래 자료가 없습니다', hi: '비싼 편', lo: '싼 편'},
+};
+
+// 유형마다 문서가 내세우는 성격 1~2개. want: hi(많은 편) lo(적은 편) nhi(많은 편은 아님) nlo(적은 편은 아님)
+const CLAIMS = {
+  A1: [{k: 'eng',   want: 'hi',  say: '영어학원이 몰린 학원가'},
+       {k: 'per1k', want: 'hi',  say: '아이 수에 비해서도 학원이 많다'}],
+  A2: [{k: 'apt',   want: 'hi',  say: '구매력이 높은 동네'},
+       {k: 'pop',   want: 'nlo', say: '아이 수요가 작지 않다'}],
+  A3: [{k: 'apt',   want: 'hi',  say: '구매력이 높은 동네'},
+       {k: 'per1k', want: 'nhi', say: '동네 학원은 얇다 (원정·과외로 빠져나감)'}],
+  B1: [{k: 'pop',   want: 'nlo', say: '아이가 많은 가족 동네'},
+       {k: 'new',   want: 'nlo', say: '학원이 새로 늘고 있는 시장'}],
+  B2: [{k: 'eng',   want: 'nlo', say: '학원가가 자리를 잡았다'},
+       {k: 'new',   want: 'nhi', say: '새로 생기기보다 이미 성숙했다'}],
+  B3: [{k: 'pop',   want: 'nlo', say: '아이 수요가 작지 않다'},
+       {k: 'lvl',                say: '비평준화 지역이다'}],
+  C1: [{k: 'per1k', want: 'nhi', say: '학원 경쟁이 과열되진 않았다'},
+       {k: 'apt',   want: 'nhi', say: '집값이 최상위권은 아니다'}],
+  C2: [{k: 'per1k', want: 'nhi', say: '학원 경쟁이 과열되진 않았다'},
+       {k: 'eng',   want: 'nhi', say: '큰 학원가는 아니다'}],
+  D1: [{k: 'eng',   want: 'nhi', say: '작은 학원 시장이다'},
+       {k: 'apt',   want: 'nhi', say: '집값이 최상위권은 아니다'}],
+  D2: [{k: 'pop',   want: 'lo',  say: '아이가 적은 외곽이다'},
+       {k: 'eng',   want: 'lo',  say: '영어학원이 거의 없다'}],
+  D3: [{k: 'new',   want: 'nlo', say: '새로 생기는 학원이 많다'},
+       {k: 'pop',   want: 'nhi', say: '아직 아이 수가 많지는 않다'}],
+};
+const WANT_OK = {hi: ['hi'], lo: ['lo'], nhi: ['lo', 'mid'], nlo: ['hi', 'mid']};
+
+let CHECK_CACHE = null;   // 부동산 자료가 늦게 오면 다시 만든다.
+function checkBase(){
+  const stamp = (MARKET ? 1 : 0) + (ESTATE ? 2 : 0);
+  if (CHECK_CACHE && CHECK_CACHE.stamp === stamp) return CHECK_CACHE;
+  const rows = DATA.dong.filter(r => MARKET && MARKET.dongs[keyOf(r)]);
+  const cuts = {};
+  for (const [k, m] of Object.entries(CHECK_METRIC)){
+    const v = rows.map(m.v).filter(x => x !== null && x !== undefined).sort((a, b) => a - b);
+    cuts[k] = v.length ? [v[Math.floor(v.length / 3)], v[Math.floor(v.length * 2 / 3)]] : null;
+  }
+  const byType = {};
+  for (const r of rows) (byType[MARKET.dongs[keyOf(r)].code] ||= []).push(r);
+  CHECK_CACHE = {stamp, rows, cuts, byType, fails: {}};
+  for (const r of rows){
+    const res = checksFor(r).filter(c => c.ok !== null);
+    if (res.length && res.every(c => !c.ok)) CHECK_CACHE.fails[keyOf(r)] = true;
+  }
+  return CHECK_CACHE;
+}
+
+function levelOf(value, cut){
+  if (value === null || value === undefined || !cut) return null;
+  return value >= cut[1] ? 'hi' : value <= cut[0] ? 'lo' : 'mid';
+}
+
+function checksFor(r){
+  const m = MARKET.dongs[keyOf(r)];
+  const base = CHECK_CACHE;
+  return (CLAIMS[m.code] || []).map(c => {
+    if (c.k === 'lvl'){
+      const ok = MARKET.non_leveled.includes(r.parent);
+      return {say: c.say, ok, detail: r.parent + (ok ? '는 비평준화 지역입니다' : '는 평준화 지역입니다')};
+    }
+    const M = CHECK_METRIC[c.k];
+    const v = M.v(r);
+    const lv = levelOf(v, base.cuts[c.k]);
+    if (lv === null) return {say: c.say, ok: null, detail: M.none || '자료가 없습니다'};
+    const word = lv === 'hi' ? (M.hi || '많은 편') : lv === 'lo' ? (M.lo || '적은 편') : '보통';
+    return {say: c.say, ok: WANT_OK[c.want].includes(lv),
+            detail: M.l + ' <b>' + M.f(v) + '</b> · 400개 동 중 <b>' + word + '</b>'};
+  });
+}
+
 function drawMarket(row){
   const box = document.getElementById('mview');
   if (!box) return;
@@ -268,11 +357,52 @@ function drawMarket(row){
                     '<br>분석은 서울과 서울에 맞닿은 경기 동 400곳만 다룹니다.</div>';
     return;
   }
+  const base = checkBase();
   const t = MARKET.types[m.code];
   const g = MARKET.grades[m.grade];
   const group = m.group && MARKET.groups.find(x => x.label === m.group);
   const leveled = MARKET.non_leveled.includes(row.parent);
-  const line = (k, v) => v ? '<div class="mrow"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>' : '';
+  const checks = checksFor(row);
+  const allFail = !!base.fails[keyOf(row)];
+
+  // ① 문서 판단 ↔ 데이터
+  const mark = c => c.ok === null ? '<span class="ck na">판단 보류</span>'
+                  : c.ok ? '<span class="ck ok">✓ 맞음</span>' : '<span class="ck no">✗ 다름</span>';
+  const checkHtml = checks.map(c =>
+    '<div class="crow">' + mark(c) +
+      '<div><div class="csay">“' + c.say + '”</div><div class="cdet">' + c.detail + '</div></div></div>').join('');
+
+  // ② 같은 유형 안에서
+  const peers = base.byType[m.code] || [];
+  const n = peers.length;
+  const posRow = (key, label, lowGood) => {
+    const M = CHECK_METRIC[key];
+    const v = M.v(row);
+    if (v === null || v === undefined) return '';
+    const vals = peers.map(M.v).filter(x => x !== null && x !== undefined).sort((a, b) => b - a);
+    const rank = vals.findIndex(x => x <= v) + 1;
+    const pct = vals.length > 1 ? (rank - 1) / (vals.length - 1) : 0;
+    const word = vals.length < 6 ? '' : pct <= 1 / 3 ? (M.hi || '많은 편') : pct >= 2 / 3 ? (M.lo || '적은 편') : '중간';
+    return '<div class="prow"><span class="pk">' + label + '</span>' +
+      '<span class="pv">' + M.f(v) + '</span>' +
+      '<span class="pbar"><i style="left:' + (100 - pct * 100) + '%"></i></span>' +
+      '<span class="pw' + (word && lowGood !== undefined ? ((word === '적은 편') === lowGood ? ' good' : '') : '') + '">' +
+        (word ? word + ' · ' : '') + vals.length + '곳 중 ' + rank + '위</span></div>';
+  };
+  const lvIn = key => {
+    const vals = peers.map(CHECK_METRIC[key].v).filter(x => x !== null && x !== undefined);
+    const v = CHECK_METRIC[key].v(row);
+    if (v === null || vals.length < 6) return null;
+    const higher = vals.filter(x => x > v).length / (vals.length - 1);
+    return higher <= 1 / 3 ? 'hi' : higher >= 2 / 3 ? 'lo' : 'mid';
+  };
+  const kid = lvIn('pop'), comp = lvIn('per1k');
+  // 동네 안 학원이 적은 것이 곧 경쟁이 약하다는 뜻은 아니다(원정 지역). 본 그대로만 적는다.
+  const take = kid === 'hi' && comp === 'lo' ? '같은 유형 중 <b>아이는 많은데, 아이 수에 비해 동네 영어학원은 적은 편</b>입니다.'
+             : kid === 'hi' && comp !== 'hi' ? '같은 유형 중 <b>아이가 많은 편</b>이고, 아이 수에 비한 학원 수는 보통입니다.'
+             : kid === 'lo' && comp === 'hi' ? '같은 유형 중 <b>아이는 적은데, 아이 수에 비해 영어학원은 많은 편</b>입니다.'
+             : comp === 'lo' ? '같은 유형 중 <b>아이 수에 비해 동네 영어학원이 적은 편</b>입니다.'
+             : comp === 'hi' ? '같은 유형 중 <b>아이 수에 비해 영어학원이 많은 편</b>입니다.' : '';
 
   box.innerHTML =
     '<div class="mhead">' +
@@ -280,21 +410,40 @@ function drawMarket(row){
       '<b class="mname">' + t.name + '</b>' +
       '<span class="mgrade ' + m.grade + '" title="' + g.text + '">' + g.label + '</span>' +
     '</div>' +
-    (m.own ? '<div class="mown"><span class="k">이 동에 대한 판단</span>' + m.own + '</div>' : '') +
+    (allFail ? '<div class="mflag">⚠ <b>문서의 판단과 우리 데이터가 다릅니다.</b> 이 동은 유형 설명을 그대로 믿지 말고 현장을 먼저 확인하세요.</div>' : '') +
+
+    '<section class="msec"><h4>문서 판단, 데이터로 맞춰보기</h4>' + checkHtml +
+      '<p class="mhint">400개 동을 줄 세워 위 ⅓을 많은 편, 아래 ⅓을 적은 편으로 봤습니다. 점수가 아니라 어느 쪽에 있는지만 봅니다.</p>' +
+    '</section>' +
+
+    '<section class="msec"><h4>같은 ' + m.code + ' 유형 ' + n + '곳 안에서</h4>' +
+      posRow('pop', '초4~중3 아이') +
+      posRow('eng', '영어학원') +
+      posRow('per1k', '아이 천 명당 영어학원', true) +
+      posRow('new', '최근 3년 신규 비율') +
+      (take ? '<p class="mtake">' + take + '</p>' : '') +
+      '<button type="button" class="mpeer" data-code="' + m.code + '">' + m.code + ' 유형 ' + n + '곳만 목록으로 보기</button>' +
+    '</section>' +
+
+    (m.own ? '<div class="mown"><span class="k">문서가 이 동에 대해 쓴 판단</span>' + m.own + '</div>' : '') +
     (group ? '<div class="mnote grp"><b>' + group.label + ' 후보</b> — ' + group.note + '</div>' : '') +
     (leveled ? '<div class="mnote lvl"><b>비평준화 지역</b> — 중학교 내신이 고등학교 선택과 바로 이어져, ' +
                '학교별 내신 대비 수요가 상대적으로 직접적입니다.</div>' : '') +
-    '<div class="mbody">' +
-      '<p class="msub">' + m.code + ' 유형 공통 설명 <small>같은 유형의 동은 모두 같은 내용입니다</small></p>' +
-      line('시장 성격', t.summary) +
-      line('부모가 보는 것', t.parent) +
-      line('영어를 배우는 이유', t.motive) +
-      line('맞는 운영 형태', t.form) +
-      line('권할 메시지', t.message) +
-      line('피할 것', t.caution) +
-    '</div>' +
-    '<div class="mwarn"><b>' + g.label + '</b> — ' + g.text + '<br>' + MARKET.caution + '</div>' +
-    '<p class="msrc">출처: ' + MARKET.title + ' (' + MARKET.as_of.replace(/-/g, '.') + ' 기준)</p>';
+
+    '<details class="mbody"><summary>문서의 ' + m.code + ' 유형 설명 <small>같은 유형의 동은 모두 같은 내용입니다</small></summary>' +
+      [['시장 성격', t.summary], ['부모가 보는 것', t.parent], ['영어를 배우는 이유', t.motive],
+       ['맞는 운영 형태', t.form], ['권할 메시지', t.message], ['피할 것', t.caution]]
+        .filter(([, v]) => v)
+        .map(([k, v]) => '<div class="mrow"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>').join('') +
+    '</details>' +
+    '<div class="mwarn"><b>근거 등급: ' + g.label + '</b> — ' + g.text + '<br>' + MARKET.caution + '</div>' +
+    '<p class="msrc">출처: ' + MARKET.title + ' (' + MARKET.as_of.replace(/-/g, '.') + ' 기준) · 대조 데이터: 나이스 학원·학교, 행안부 인구, 국토부 실거래</p>';
+
+  const peer = box.querySelector('.mpeer');
+  if (peer) peer.onclick = () => {
+    state.mkt = 'type:' + peer.dataset.code; state.page = 0; render();
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  };
 }
 
 function mktNote(){
