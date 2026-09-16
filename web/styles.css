@@ -602,15 +602,17 @@ body.blank-mode .meta .legend{visibility:hidden}
 .grid4 p{margin:4px 0 0; font-size:14.5px; line-height:1.6}
 .cols2{display:grid; grid-template-columns:1fr 1fr; gap:18px}
 
-.rank{list-style:none; padding:0; counter-reset:r}
-.rank li{counter-increment:r; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px;
+/* 번호 목록. '.rank'는 입지·상권 목록의 순위 숫자가 이미 쓰고 있어 이름을 따로 둔다. */
+.numlist{list-style:none; padding:0; counter-reset:r}
+.numlist li{counter-increment:r; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px;
   padding:8px 0; border-top:1px dashed #e4e1da}
-.rank li:first-child{border-top:0}
-.rank li::before{content:counter(r); width:24px; height:24px; border-radius:50%; background:var(--accent);
+.numlist li:first-child{border-top:0}
+.numlist li::before{flex:none; content:counter(r); width:24px; height:24px; border-radius:50%; background:var(--accent);
   color:#fff; font-size:13px; font-weight:800; display:inline-flex; align-items:center; justify-content:center}
-.rank li span{flex-basis:100%; padding-left:34px; font-size:14px; color:var(--ink-2)}
-.rank li.dim::before{background:#c9cdd2}
-.rank li.dim b{color:var(--ink-3)}
+.numlist li span{flex-basis:100%; padding-left:34px; font-size:14px; color:var(--ink-2)}
+.numlist li.dim::before{background:#c9cdd2}
+.numlist li.dim b{color:var(--ink-3)}
+.numlist li b{flex:1 1 0; min-width:0}
 
 .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
 .steps > div{border:1px solid var(--line); border-radius:11px; padding:12px 14px}
