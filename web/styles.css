@@ -301,6 +301,8 @@ select.add-col{
 }
 .mk.open .card .back:hover{color:var(--accent)}
 .mk.open .card u{text-decoration:none; color:var(--ink); font-weight:600}
+.mk.open .card hr{border:0; border-top:1px solid #f0eee9; margin:7px 0 0}
+.mk.open .card b{display:inline; font-size:12px; color:var(--ink)}
 .mk.open .card small{color:var(--ink-4)}
 .mk.open.e .card b{color:#2b6698}
 .mk.open.m .card b{color:#1f4f7a}

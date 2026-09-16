@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 — supot</title>
-<link rel="stylesheet" href="styles.css?v=14">
+<link rel="stylesheet" href="styles.css?v=16">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -106,7 +106,7 @@ const METRICS = [
   {k:'pop_mid',       g:'인구', l:'중학생 나이 인구',        u:'명', sub:true, d:'만 12~14세 인구입니다.'},
 ];
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '14';
+const V = '16';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -322,6 +322,7 @@ function renderDetail(list){
 // ---------- 지도 ----------
 const PLACE_CACHE = {};
 let kakaoReady = false, mapObj = null, overlays = [];
+let MAP_REGION = {sido: '', gusi: ''};
 
 function placeFile(row){
   // 파일 이름은 prep_places.py 의 slug() 와 같은 규칙으로 만든다.
@@ -344,7 +345,8 @@ const manwon = v => Math.round(v / 10_000).toLocaleString('ko-KR') + '만원';
 const eok = v => v >= 100_000_000
   ? (v / 100_000_000).toFixed(1).replace(/\.0$/, '') + '억' : manwon(v);
 
-const SCHOOL_RADIUS = 700;   // 도보 10분 남짓. 학교 반경 원과 같은 값.
+const SCHOOL_RADIUS = 700;
+const NEARBY_RADIUS = 500;   // 그 건물 주변 시세를 볼 범위   // 도보 10분 남짓. 학교 반경 원과 같은 값.
 
 function metersBetween(a, b){
   // 동네 범위라 평면으로 봐도 오차가 무시할 만하다.
@@ -385,9 +387,25 @@ function cardFor(p, all){
     line.push([shop ? p.k : '아파트', p.y ? p.y + '년' : null, p.z].filter(Boolean).join(' · '));
     line.push('<u>매매 ㎡당 ' + manwon(p.m2) + '</u>');
     line.push('중간 매매가 ' + eok(p.p) + ' <small>전용 ' + p.ar + '㎡</small>');
-    line.push('최근 2년 매매 ' + p.c + '건 <small>(전세·월세 아님)</small>');
-    if (shop && p.k.includes('근린생활'))
-      line.push('<u>학원이 들어갈 수 있는 용도입니다</u>');
+    line.push('최근 2년 매매 ' + p.c + '건');
+
+    // 한 건물만 보면 몇 건에 휘둘린다. 주변 실거래를 같이 세어 시세를 잡는다.
+    const near = all.filter(x => x.t === p.t && metersBetween(p, x) <= NEARBY_RADIUS);
+    const deals = near.reduce((n, x) => n + (x.c || 0), 0);
+    // 두세 건으로 시세를 말하면 한 건에 휘둘린다. 최소 5곳은 있어야 보여준다.
+    if (near.length >= 5){
+      const mid = near.map(x => x.m2).sort((a, b) => a - b)[near.length >> 1];
+      line.push('<hr>주변 ' + NEARBY_RADIUS + 'm ' + (shop ? '상가' : '아파트') +
+                ' ㎡당 <b>' + manwon(mid) + '</b> <small>' + near.length +
+                (shop ? '개 건물 · ' : '개 단지 · ') + deals + '건 거래</small>');
+    }
+    if (shop){
+      const r = RENT && RENT.gusi[MAP_REGION.sido + '/' + MAP_REGION.gusi];
+      if (r) line.push(MAP_REGION.gusi + ' 임대 ㎡당 월 <b>' +
+                       Math.round(r.rent * 1000).toLocaleString('ko-KR') + '원</b>' +
+                       ' <small>구 평균 · 추정 · 보증금 포함</small>');
+      if (p.k.includes('근린생활')) line.push('<u>학원이 들어갈 수 있는 용도입니다</u>');
+    }
   } else {
     const age = p.y ? (new Date().getFullYear() - p.y + 1) : null;
     line.push([p.k, age ? age + '년차' : null].filter(Boolean).join(' · '));
@@ -455,6 +473,7 @@ function drawMap(row, keepView){
       return;
     }
     loadKakao().then(() => {
+      MAP_REGION = {sido: data.sido, gusi: data.gusi};
       const cutoff = new Date().getFullYear() - 3;
       const showKey = p => p.t === 'p' ? '아파트' : (p.t === 'g' ? '상가' : p.k);
       const pts = data.items.filter(p =>
