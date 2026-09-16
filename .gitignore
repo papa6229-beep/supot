@@ -13,3 +13,6 @@ __pycache__/
 
 # 키는 절대 담지 않는다
 data/secrets/
+
+# 조사 문서 원본. 개인 표현이 있어 저장소에 올리지 않는다. 뽑은 결과만 web/data 에 둔다.
+data/raw/*.docx

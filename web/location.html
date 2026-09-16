@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 — supot</title>
-<link rel="stylesheet" href="styles.css?v=26">
+<link rel="stylesheet" href="styles.css?v=27">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -41,6 +41,11 @@
     <div class="field">
       <span class="lbl">지역</span>
       <div class="seg" id="region"></div>
+    </div>
+
+    <div class="field" id="mktfield" style="display:none">
+      <label for="mkt">시장 유형 <small>동 단위 · 서울+인접 경기</small></label>
+      <select class="pick" id="mkt"></select>
     </div>
 
     <div class="field normal-only">
@@ -125,20 +130,21 @@ const kindLabel = k => (ACA_KIND[k] && ACA_KIND[k].label) || k;
 
 const indent = m => m.sub ? '  '.repeat(m.sub) + '└ ' : '';
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '26';
+const V = '27';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
 const UNKNOWN_DONG = '(동 미상)';
 
 const state = {a:'eng_total', cols:['pop_target', 'sch_total'], unit:'dong', region:'all',
-               desc:true, q:'', page:0, hideZero:true, gap:false, listKind:'all', listSort:'old', focus:null, picked:null, tab:'summary', rings:true,
+               desc:true, q:'', page:0, hideZero:true, gap:false, listKind:'all', listSort:'old', focus:null, mkt:'', picked:null, tab:'summary', rings:true,
                show:{'초등학교':true, '중학교':true,
                      '영어 전문':true, '영어+타 과목':true, '교습소':true,
                      '아파트':false, '상가':false},
                recentOnly:false};
 let DATA = null;
 let ESTATE = null;   // 부동산 요약. 늦게 와도 화면은 먼저 뜬다.
+let MARKET = null;   // 개원시장 동별 분석(유형 추정). 동 단위만.
 let RENT = null;     // 소규모상가 임대 시세. 구·시 단위 추정치.
 
 const fmt = n => (n === null || n === undefined) ? '—' : n.toLocaleString('ko-KR');
@@ -206,6 +212,97 @@ function median(values){
   return v.length % 2 ? v[m] : Math.round((v[m - 1] + v[m]) / 2);
 }
 
+// ---------- 시장 해석 ----------
+const mktOf = r => (MARKET && state.unit === 'dong' && MARKET.dongs[keyOf(r)]) || null;
+
+// 목록 거르기. 'type:B1' 이나 'group:1차 현장검증'
+function mktPass(r){
+  if (!state.mkt || !MARKET || state.unit !== 'dong') return true;
+  const m = mktOf(r);
+  if (!m) return false;
+  const [kind, val] = state.mkt.split(':');
+  return kind === 'type' ? m.code === val : m.group === val;
+}
+
+function mktTag(r){
+  const m = mktOf(r);
+  if (!m) return '';
+  return '<span class="mtag f' + m.code[0] + '" title="' + MARKET.types[m.code].name + '">' + m.code + '</span>';
+}
+
+function fillMarket(){
+  const box = document.getElementById('mktfield');
+  const sel = document.getElementById('mkt');
+  const on = MARKET && state.unit === 'dong';
+  box.style.display = on ? '' : 'none';
+  if (!on) return;
+  const all = Object.values(MARKET.dongs);
+  const nType = c => all.filter(m => m.code === c).length;
+  const family = {A: 'A 입시·상위권', B: 'B 가족형·내신', C: 'C 실용·지역', D: 'D 소규모·외곽'};
+  let html = '<option value="">전체</option><optgroup label="우선 검토군">' +
+    MARKET.groups.map(g => '<option value="group:' + g.label + '"' +
+      (state.mkt === 'group:' + g.label ? ' selected' : '') + '>' + g.label + ' (' + g.dongs.length + ')</option>').join('') +
+    '</optgroup>';
+  for (const f of Object.keys(family)){
+    html += '<optgroup label="' + family[f] + '">' +
+      Object.keys(MARKET.types).filter(c => c[0] === f).map(c =>
+        '<option value="type:' + c + '"' + (state.mkt === 'type:' + c ? ' selected' : '') + '>' +
+        c + ' ' + MARKET.types[c].name + ' (' + nType(c) + ')</option>').join('') +
+      '</optgroup>';
+  }
+  sel.innerHTML = html;
+  sel.onchange = e => { state.mkt = e.target.value; state.page = 0; render(); };
+}
+
+function drawMarket(row){
+  const box = document.getElementById('mview');
+  if (!box) return;
+  if (state.unit !== 'dong'){
+    box.innerHTML = '<div class="mapmsg">시장 해석은 <b>동 단위</b>에서만 볼 수 있습니다.</div>';
+    return;
+  }
+  if (!MARKET){ box.innerHTML = '<div class="mapmsg">불러오는 중…</div>'; return; }
+  const m = MARKET.dongs[keyOf(row)];
+  if (!m){
+    box.innerHTML = '<div class="mapmsg">이 동은 시장 분석 대상이 아닙니다.' +
+                    '<br>분석은 서울과 서울에 맞닿은 경기 동 400곳만 다룹니다.</div>';
+    return;
+  }
+  const t = MARKET.types[m.code];
+  const g = MARKET.grades[m.grade];
+  const group = m.group && MARKET.groups.find(x => x.label === m.group);
+  const leveled = MARKET.non_leveled.includes(row.parent);
+  const line = (k, v) => v ? '<div class="mrow"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>' : '';
+
+  box.innerHTML =
+    '<div class="mhead">' +
+      '<span class="mcode f' + m.code[0] + '">' + m.code + '</span>' +
+      '<b class="mname">' + t.name + '</b>' +
+      '<span class="mgrade ' + m.grade + '" title="' + g.text + '">' + g.label + '</span>' +
+    '</div>' +
+    (m.own ? '<div class="mown"><span class="k">이 동에 대한 판단</span>' + m.own + '</div>' : '') +
+    (group ? '<div class="mnote grp"><b>' + group.label + ' 후보</b> — ' + group.note + '</div>' : '') +
+    (leveled ? '<div class="mnote lvl"><b>비평준화 지역</b> — 중학교 내신이 고등학교 선택과 바로 이어져, ' +
+               '학교별 내신 대비 수요가 상대적으로 직접적입니다.</div>' : '') +
+    '<div class="mbody">' +
+      '<p class="msub">' + m.code + ' 유형 공통 설명 <small>같은 유형의 동은 모두 같은 내용입니다</small></p>' +
+      line('시장 성격', t.summary) +
+      line('부모가 보는 것', t.parent) +
+      line('영어를 배우는 이유', t.motive) +
+      line('맞는 운영 형태', t.form) +
+      line('권할 메시지', t.message) +
+      line('피할 것', t.caution) +
+    '</div>' +
+    '<div class="mwarn"><b>' + g.label + '</b> — ' + g.text + '<br>' + MARKET.caution + '</div>' +
+    '<p class="msrc">출처: ' + MARKET.title + ' (' + MARKET.as_of.replace(/-/g, '.') + ' 기준)</p>';
+}
+
+function mktNote(){
+  const [kind, val] = state.mkt.split(':');
+  const what = kind === 'type' ? val + ' ' + MARKET.types[val].name : val + ' 후보';
+  return '<b>시장 유형 「' + what + '」</b>인 동만 보입니다. 유형은 개원시장 분석 문서의 추정이며 동별 실측이 아닙니다.';
+}
+
 // '학원 적은 순' 기준.
 // 아이 1천 명당 영어학원, 학교 1곳당 영어학원을 각각 지금 보는 범위의 보통(중앙값)과
 // 견주고, 두 비율을 반반 평균해 '보통의 몇 %'로 낸다. 100%면 보통, 낮을수록 적다.
@@ -242,8 +339,9 @@ function rowsFor(){
   // 주소에 동이 없어 못 가른 것들은 지역이 아니므로 순위에서 뺀다.
   let list = DATA[state.unit].filter(r => r.name !== UNKNOWN_DONG);
   if (state.region !== 'all') list = list.filter(r => r.sido === state.region);
-  // 학원 적은 순은 검색어와 상관없이 단위·지역 전체로 보통을 잡는다.
+  // 학원 적은 순은 검색어·시장 유형과 상관없이 단위·지역 전체로 보통을 잡는다.
   if (state.gap) list = fewRows(list);
+  list = list.filter(mktPass);
   if (state.q){
     const q = state.q.trim();
     list = list.filter(r => r.name.includes(q) || (r.parent || '').includes(q));
@@ -349,6 +447,7 @@ function renderDetail(list){
         '<span class="hint" id="mapcount"></span>' +
       '</div></div>'
     : state.tab === 'list' ? '<div class="alist" id="alist"><div class="mapmsg">불러오는 중…</div></div>'
+    : state.tab === 'market' ? '<div class="mview" id="mview"></div>'
     : '<div class="groups">' + groups + '</div>' + derived;
 
   detail.innerHTML =
@@ -356,12 +455,13 @@ function renderDetail(list){
       (row.parent ? '<span class="p">' + row.parent + '</span>' : '') +
       '<span class="lead">영어학원 <b>' + fmt(row.eng_total) + '</b>곳</span></div>' +
     '<div class="tabs">' + tab('summary', '요약', true) +
-      tab('list', '학원 목록', true) + tab('map', '지도', true) + '</div>' +
+      tab('list', '학원 목록', true) + tab('map', '지도', true) + tab('market', '시장 해석', true) + '</div>' +
     '<div class="dbody">' + body + '</div>';
 
   for (const b of detail.querySelectorAll('.tabs button[data-tab]'))
     b.onclick = () => { state.tab = b.dataset.tab; render(); };
   if (state.tab === 'list') drawList(row);
+  if (state.tab === 'market') drawMarket(row);
   if (state.tab === 'map'){
     const ring = document.getElementById('ringOn');
     if (ring) ring.onchange = () => { state.rings = ring.checked; drawMap(row, true); };
@@ -759,6 +859,7 @@ function render(){
           [{k:'off', l:'기본 보기'}, {k:'on', l:'학원 적은 순'}],
           () => state.gap ? 'on' : 'off', k => state.gap = (k === 'on'));
   document.body.classList.toggle('few-mode', state.gap);
+  fillMarket();
   segment(zero,   [{k:'hide', l:'빼기'}, {k:'show', l:'넣기'}],
           () => state.hideZero ? 'hide' : 'show', k => state.hideZero = (k === 'hide'));
 
@@ -799,7 +900,7 @@ function render(){
       const where = r.parent ? '<span class="p">' + r.parent + '</span>' : '';
       html += '<div class="row" data-key="' + keyOf(r) + '" aria-selected="' + (keyOf(r) === state.picked) + '">' +
                 '<div class="nm"><span class="rank">' + (state.page * PER_PAGE + i + 1) + '</span>' +
-                r.name + where + '</div>' +
+                r.name + mktTag(r) + where + '</div>' +
                 stats.map((s, ci) => cell(r[s.m.k], s.max, s.med, barColor(ci))).join('') +
               '</div>';
     });
@@ -821,6 +922,7 @@ function render(){
   const notes = [];
   if (state.hideZero)
     notes.push('순위 지표가 <b>0인 지역은 빼고</b> 셌습니다. 왼쪽에서 넣을 수 있습니다.');
+  if (state.mkt && MARKET && state.unit === 'dong') notes.push(mktNote());
   if (state.unit === 'dong')
     notes.push('동은 <b>법정동</b>입니다. 주소에 동이 없는 학원 ' +
                fmt(DATA.counts.rows - DATA.counts.dong_parsed) + '건은 목록에서 뺐고, ' +
@@ -858,7 +960,7 @@ function renderFew(){
     slice.forEach((r, i) => {
       const w = Math.min(r._few, 200) / 2;
       html += '<div class="row" data-key="' + keyOf(r) + '" aria-selected="' + (keyOf(r) === state.picked) + '">' +
-        '<div class="nm"><span class="rank">' + (state.page * PER_PAGE + i + 1) + '</span>' + r.name +
+        '<div class="nm"><span class="rank">' + (state.page * PER_PAGE + i + 1) + '</span>' + r.name + mktTag(r) +
           (r.parent ? '<span class="p">' + r.parent + '</span>' : '') + '</div>' +
         '<div class="n">' + fmt(r.sch_total) + '<small>개</small></div>' +
         '<div class="n">' + fmt(r.pop_target) + '<small>명</small></div>' +
@@ -887,6 +989,7 @@ function renderFew(){
     notes.push('<b>학교 ' + fmt(Math.ceil(FEW.minSch)) + '개 이상 · 아이 ' + fmt(Math.ceil(FEW.minPop)) +
                '명 이상</b>인 지역만 줄 세웠습니다. 둘 다 ' + where + '의 보통(중앙값)입니다. ' +
                '학교나 아이가 적은 작은 동은 학원이 없어도 자리로 보기 어려워서입니다.');
+  if (state.mkt && MARKET && state.unit === 'dong') notes.push(mktNote());
   notes.push('아이 수는 학교 재학생이 아니라 그 지역에 <b>사는</b> 만 9~14세 인구입니다.');
   notes.push('영어학원이 한두 곳뿐인 작은 동은 한 곳만 늘어도 순위가 크게 바뀝니다. 옆 숫자를 같이 보세요.');
   note.innerHTML = notes.join('<br>');
@@ -915,6 +1018,10 @@ fetch('data/regions.json?v=' + V)
     fetch('data/rent.json?v=' + V)
       .then(r => r.ok ? r.json() : null)
       .then(e => { if (e){ RENT = e; render(); } })
+      .catch(() => {});
+    fetch('data/market.json?v=' + V)
+      .then(r => r.ok ? r.json() : null)
+      .then(e => { if (e){ MARKET = e; render(); } })
       .catch(() => {});
   })
   .catch(() => { rows.innerHTML = '<div class="none">데이터를 불러오지 못했습니다.</div>'; });

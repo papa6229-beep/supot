@@ -396,3 +396,42 @@ body.few-mode .meta .legend{display:none}
 .alist .as small{color:var(--ink-3)}
 .alist .dim{color:var(--ink-4)}
 .alist .lnote{margin:10px 2px 0; font-size:13px; color:var(--ink-3)}
+
+/* 시장 해석 — 유형 계열 색. A 입시·상위권 / B 가족형·내신 / C 실용·지역 / D 소규모·외곽 */
+:root{--mA:#b3261e; --mA-bg:#fde7e5; --mB:#1b7a3a; --mB-bg:#e1f4e6;
+      --mC:#1f5fae; --mC-bg:#e3edfa; --mD:#5c6470; --mD-bg:#eceef1}
+.mtag{display:inline-block; margin-left:6px; padding:1px 6px; border-radius:5px;
+      font-size:11.5px; font-weight:800; letter-spacing:.02em; vertical-align:2px}
+.mtag.fA,.mcode.fA{color:var(--mA); background:var(--mA-bg)}
+.mtag.fB,.mcode.fB{color:var(--mB); background:var(--mB-bg)}
+.mtag.fC,.mcode.fC{color:var(--mC); background:var(--mC-bg)}
+.mtag.fD,.mcode.fD{color:var(--mD); background:var(--mD-bg)}
+.field label small{font-weight:400; color:var(--ink-4); margin-left:4px}
+
+.mview{padding:6px 0 4px; max-width:780px}
+.mhead{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:4px 0 14px}
+.mcode{font-size:18px; font-weight:800; padding:4px 10px; border-radius:7px}
+.mname{font-size:20px; font-weight:700; color:var(--ink)}
+.mgrade{margin-left:auto; font-size:13px; font-weight:700; padding:4px 11px; border-radius:999px; cursor:help}
+.mgrade.E1{background:#dff3e6; color:#17693a}
+.mgrade.E2{background:#f1efea; color:#5a5f68}
+.mgrade.E3{background:#fdecd6; color:#9a5300}
+.mown{background:#fffbe8; border:1px solid #f1dfa0; border-radius:10px; padding:12px 14px;
+      font-size:16px; line-height:1.6; color:var(--ink); margin-bottom:10px}
+.mown .k{display:block; font-size:12.5px; font-weight:700; color:#8a6a00; margin-bottom:3px}
+.mnote{border-radius:10px; padding:10px 14px; font-size:14.5px; line-height:1.55; margin-bottom:10px}
+.mnote.grp{background:#eef4ff; color:#1d3f73}
+.mnote.lvl{background:#f3eefc; color:#47307a}
+.mbody{border:1px solid var(--line); border-radius:10px; padding:4px 16px 8px; margin:6px 0 12px}
+.msub{margin:10px 0 4px; font-size:13px; font-weight:700; color:var(--ink-3)}
+.msub small{font-weight:400; margin-left:6px}
+.mrow{display:grid; grid-template-columns:150px 1fr; gap:12px; padding:9px 0; border-top:1px solid #f0eee9}
+.mrow:first-of-type{border-top:0}
+.mrow .k{font-size:14px; color:var(--ink-3)}
+.mrow .v{font-size:15.5px; color:var(--ink); line-height:1.55}
+.mwarn{background:#f7f6f2; border-radius:10px; padding:11px 14px; font-size:13.5px; line-height:1.6; color:var(--ink-2)}
+.msrc{margin:8px 2px 0; font-size:12.5px; color:var(--ink-4)}
+@media (max-width:700px){
+  .mrow{grid-template-columns:1fr; gap:2px}
+  .mgrade{margin-left:0}
+}

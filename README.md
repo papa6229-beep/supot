@@ -58,10 +58,15 @@ python build/fetch_neis.py                       # 학원·학교 스냅샷
 python build/fetch_population.py                 # 법정동별 연령 인구 (56회 호출)
 python build/prep_dongmap.py <연계정보.csv>       # 82MB 원본 -> 126KB 추출
 python build/prep.py                             # -> web/data/regions.json
+python build/prep_places.py                      # -> web/data/places/ (동별 지도·학원 목록)
+python build/prep_market.py                      # -> web/data/market.json (개원시장 동별 분석)
 ```
 
 `data/raw/aca_*.csv`, `school_*.csv`는 커서 저장소에 담지 않는다. 위 스크립트로 받는다.
 법정동 연계정보 원본은 공공데이터포털 로그인이 필요해 추출본(`dongmap.csv`)만 담았다.
+개원시장 분석 원본(`data/raw/market_analysis_2026-09.docx`)은 개인 표현이 있어 담지 않는다.
+이 문서의 동별 내용은 대부분 유형 추정(근거 등급 E2)이고, 같은 유형이면 설명이 똑같다.
+그래서 `market.json`은 설명을 유형에 한 번만 두고, 동에는 유형·등급과 그 동만을 위해 쓴 문장(31곳)만 싣는다.
 
 ### 보기
 
