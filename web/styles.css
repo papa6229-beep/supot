@@ -728,3 +728,9 @@ label.inline input{font:inherit; padding:6px 10px; border:1px solid var(--line-2
   .side, .card:not(#c4), #c4 .btn, #gradeSeg{display:none !important}
   .app{display:block} .main{padding:0}
 }
+
+/* 문서 제안 접기 */
+.doc details.fold{margin-top:4px}
+.doc details.fold > summary{cursor:pointer; font-size:15px; font-weight:700; color:var(--ink-2);
+  padding:10px 14px; border:1px dashed var(--line-2); border-radius:9px; background:#fbfaf7}
+.doc details.fold[open] > summary{margin-bottom:12px}

@@ -6,14 +6,14 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 분석 — Chalkmap</title>
-<link rel="stylesheet" href="styles.css?v=44">
+<link rel="stylesheet" href="styles.css?v=45">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 <script>
 // 브라우저가 옛 화면을 붙잡고 있으면 새 버전으로 한 번 다시 불러온다.
 // 올릴 때마다 이 숫자와 version.json 을 같이 올린다.
 (function(){
-  var PAGE_V = '44';
+  var PAGE_V = '45';
   fetch('version.json?t=' + Date.now(), {cache: 'no-store'})
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(d){
@@ -162,7 +162,7 @@ const kindLabel = k => (ACA_KIND[k] && ACA_KIND[k].label) || k;
 
 const indent = m => m.sub ? '  '.repeat(m.sub) + '└ ' : '';
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '44';
+const V = '45';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -349,7 +349,7 @@ function fillMarket(){
   const all = Object.values(MARKET.dongs);
   const nType = c => all.filter(m => m.code === c).length;
   const family = {A: 'A 입시·상위권', B: 'B 가족형·내신', C: 'C 실용·지역', D: 'D 소규모·외곽'};
-  let html = '<option value="">전체</option><optgroup label="우선 검토군">' +
+  let html = '<option value="">전체</option><optgroup label="조사 문서의 분류">' +
     MARKET.groups.map(g => '<option value="group:' + g.label + '"' +
       (state.mkt === 'group:' + g.label ? ' selected' : '') + '>' + g.label + ' (' + g.dongs.length + ')</option>').join('') +
     '</optgroup>';
@@ -547,20 +547,13 @@ function drawMarket(row){
     return higher <= 1 / 3 ? 'hi' : higher >= 2 / 3 ? 'lo' : 'mid';
   };
   const kid = lvIn('pop'), comp = lvIn('per1k');
-  // 동네 안 학원이 적은 것이 곧 경쟁이 약하다는 뜻은 아니다(원정 지역). 본 그대로만 적는다.
-  const take = kid === 'hi' && comp === 'lo' ? '같은 유형 중 <b>아이는 많은데, 아이 수에 비해 동네 영어학원은 적은 편</b>입니다.'
-             : kid === 'hi' && comp !== 'hi' ? '같은 유형 중 <b>아이가 많은 편</b>이고, 아이 수에 비한 학원 수는 보통입니다.'
-             : kid === 'lo' && comp === 'hi' ? '같은 유형 중 <b>아이는 적은데, 아이 수에 비해 영어학원은 많은 편</b>입니다.'
-             : comp === 'lo' ? '같은 유형 중 <b>아이 수에 비해 동네 영어학원이 적은 편</b>입니다.'
-             : comp === 'hi' ? '같은 유형 중 <b>아이 수에 비해 영어학원이 많은 편</b>입니다.' : '';
-
   box.innerHTML =
     '<div class="mhead">' +
       '<span class="mcode f' + m.code[0] + '">' + m.code + '</span>' +
       '<b class="mname">' + t.name + '</b>' +
       '<span class="mgrade ' + m.grade + '" title="' + g.text + '">' + g.label + '</span>' +
     '</div>' +
-    (allFail ? '<div class="mflag">⚠ <b>문서의 판단과 우리 데이터가 다릅니다.</b> 이 동은 유형 설명을 그대로 믿지 말고 현장을 먼저 확인하세요.</div>' : '') +
+    (allFail ? '<div class="mflag">⚠ <b>조사 문서가 이 유형에 대해 내세운 성격이, 이 동의 데이터와 모두 다릅니다.</b> 아래 대조를 보세요.</div>' : '') +
 
     '<section class="msec"><h4>문서 판단, 데이터로 맞춰보기</h4>' + checkHtml +
       '<p class="mhint">400개 동을 줄 세워 위 ⅓을 많은 편, 아래 ⅓을 적은 편으로 봤습니다. 점수가 아니라 어느 쪽에 있는지만 봅니다.</p>' +
@@ -571,19 +564,18 @@ function drawMarket(row){
       posRow('eng', '영어학원') +
       posRow('per1k', '아이 천 명당 영어학원', true) +
       posRow('new', '최근 3년 신규 비율') +
-      (take ? '<p class="mtake">' + take + '</p>' : '') +
       '<button type="button" class="mpeer" data-code="' + m.code + '">' + m.code + ' 유형 ' + n + '곳만 목록으로 보기</button>' +
     '</section>' +
 
     hubSection(row) +
     (m.own ? '<div class="mown"><span class="k">문서가 이 동에 대해 쓴 판단</span>' + m.own + '</div>' : '') +
-    (group ? '<div class="mnote grp"><b>' + group.label + ' 후보</b> — ' + group.note + '</div>' : '') +
+    (group ? '<div class="mnote grp"><b>조사 문서의 분류: ' + group.label + '</b> — ' + group.note + '</div>' : '') +
     (leveled ? '<div class="mnote lvl"><b>비평준화 지역</b> — 중학교 내신이 고등학교 선택과 바로 이어져, ' +
                '학교별 내신 대비 수요가 상대적으로 직접적입니다.</div>' : '') +
 
-    '<details class="mbody"><summary>문서의 ' + m.code + ' 유형 설명 <small>같은 유형의 동은 모두 같은 내용입니다</small></summary>' +
+    '<details class="mbody"><summary>조사 문서의 ' + m.code + ' 유형 설명과 권고 <small>같은 유형의 동은 모두 같은 내용 · 문서의 의견입니다</small></summary>' +
       [['시장 성격', t.summary], ['부모가 보는 것', t.parent], ['영어를 배우는 이유', t.motive],
-       ['맞는 운영 형태', t.form], ['권할 메시지', t.message], ['피할 것', t.caution]]
+       ['문서가 권한 운영 형태', t.form], ['문서가 권한 메시지', t.message], ['문서가 피하라고 한 것', t.caution]]
         .filter(([, v]) => v)
         .map(([k, v]) => '<div class="mrow"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>').join('') +
     '</details>' +
@@ -599,8 +591,8 @@ function drawMarket(row){
 
 function mktNote(){
   const [kind, val] = state.mkt.split(':');
-  const what = kind === 'type' ? val + ' ' + MARKET.types[val].name : val + ' 후보';
-  return '<b>시장 유형 「' + what + '」</b>인 동만 보입니다. 유형은 개원시장 분석 문서의 추정이며 동별 실측이 아닙니다.';
+  const what = kind === 'type' ? val + ' ' + MARKET.types[val].name : val;
+  return '조사 문서가 <b>「' + what + '」</b>로 분류한 동만 보입니다. 분류는 문서의 추정이며 동별 실측이 아닙니다.';
 }
 
 // '학원 적은 순' 기준.
