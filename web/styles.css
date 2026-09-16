@@ -172,6 +172,9 @@ select.add-col{
 .grp-title{font-size:13px; color:var(--ink-3); margin:0 0 9px; padding-bottom:7px; border-bottom:1px solid var(--line)}
 .grp-title small{color:var(--ink-4); font-weight:400}
 .stat .v small{font-size:12.5px; font-weight:500; color:var(--ink-2)}
+.sep{margin:14px 0 6px; padding-top:9px; border-top:1px solid var(--line);
+     font-size:13px; color:var(--ink-3)}
+.sep small{color:var(--ink-4)}
 .stat{display:flex; align-items:baseline; gap:10px; padding:6px 0}
 .stat .k{flex:1; font-size:14px; color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .stat .v{font-size:16px; font-weight:600; font-variant-numeric:tabular-nums}
