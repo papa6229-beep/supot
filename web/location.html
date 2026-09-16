@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 분석 — Chalkmap</title>
-<link rel="stylesheet" href="styles.css?v=32">
+<link rel="stylesheet" href="styles.css?v=33">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -131,7 +131,7 @@ const kindLabel = k => (ACA_KIND[k] && ACA_KIND[k].label) || k;
 
 const indent = m => m.sub ? '  '.repeat(m.sub) + '└ ' : '';
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '32';
+const V = '33';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -1169,24 +1169,34 @@ function render(){
   note.innerHTML = notes.join('<br>');
 }
 
-/** 아무 지표도 고르지 않은 첫 화면. 그래프 없이 무엇을 고르면 되는지만 안내한다. */
+/** 아무 지표도 고르지 않은 첫 화면. 표의 틀은 그대로 두고 내용만 비워 둔다. */
 function renderBlank(){
   document.body.classList.add('blank-mode');
   title.textContent = '무엇을 볼지 골라주세요';
-  explain.innerHTML = '왼쪽 <b>「무엇으로 순위를 매길까요」</b>에서 지표를 고르면 지역별 그래프가 나옵니다. ' +
-                      '옆에 함께 볼 지표는 <b>「나란히 비교할 것」</b>에서 더할 수 있습니다.';
-  count.innerHTML = ''; sum.innerHTML = '';
   const quick = ['eng_total', 'pop_target', 'sch_total', 'eng_new3y'].map(metric);
-  rows.innerHTML = '<div class="blank">' +
-    '<p>자주 보는 지표로 바로 시작하기</p>' +
-    '<div class="quick">' + quick.map(m =>
-      '<button type="button" data-k="' + m.k + '">' + m.l + '</button>').join('') + '</div>' +
-    '</div>';
-  for (const b of rows.querySelectorAll('.quick button'))
+  explain.innerHTML = '왼쪽 <b>「무엇으로 순위를 매길까요」</b>에서 지표를 고르면 아래 표에 지역별 그래프가 채워집니다.' +
+    '<div class="quick"><span>바로 시작</span>' + quick.map(m =>
+      '<button type="button" data-k="' + m.k + '">' + m.l + '</button>').join('') + '</div>';
+  for (const b of explain.querySelectorAll('.quick button'))
     b.onclick = () => { state.a = b.dataset.k; state.page = 0; render(); };
-  pager.innerHTML = '';
-  detail.innerHTML = '';
+
+  count.innerHTML = '지역 <b>—</b>개';
+  sum.innerHTML = '합계 <b>—</b> · 중앙값 <b>—</b>';
+
+  rows.style.setProperty('--cols', 3);
+  let html = '<div class="head"><span>지역</span>' +
+    ['순위 지표', '비교 지표', '비교 지표'].map(t => '<span class="ghost-h">' + t + '</span>').join('') + '</div>';
+  for (let i = 0; i < PER_PAGE; i++){
+    html += '<div class="row ghost"><div class="nm"><span class="rank">' + (i + 1) + '</span><i class="gname"></i></div>' +
+      '<div class="cell"><div class="track"><span class="gfill"></span></div></div>'.repeat(3) + '</div>';
+  }
+  rows.innerHTML = html;
+  pager.innerHTML = '<button type="button" disabled>‹ 이전</button><span class="at">– / –</span>' +
+                    '<button type="button" disabled>다음 ›</button>';
+  detail.innerHTML = '<div class="dempty">지표를 고른 뒤 목록에서 지역을 누르면 요약 · 학원 목록 · 지도 · 시장 해석을 볼 수 있습니다.</div>';
   note.innerHTML = '';
+  // 빈 칸에서 막대가 차오르도록 이전 값을 비워 둔다.
+  for (const k of Object.keys(PREV)) delete PREV[k];
 }
 
 /** '학원 적은 순' 단독 화면. 다른 지표는 내리고 이 기준 하나만 나열한다. */
