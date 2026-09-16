@@ -264,9 +264,19 @@ select.add-col{
 }
 .mk.open .card b{display:block; font-size:13.5px; font-weight:600; line-height:1.4}
 .mk.open .card span{display:block; font-size:12px; color:var(--ink-3); line-height:1.55; margin-top:3px}
-.mk.open .card .li{border-top:1px solid #f0eee9; padding-top:4px; margin-top:4px; color:var(--ink-2)}
+.mk.open .card .li{border-top:1px solid #f0eee9; padding-top:5px; margin-top:5px; color:var(--ink-2)}
 .mk.open .card .li small{color:var(--ink-4)}
-.mk.open .card .more{color:var(--ink-4)}
+.mk.open .card .li.pick{cursor:pointer; margin-left:-6px; margin-right:-6px;
+                        padding-left:6px; padding-right:6px; border-radius:5px}
+.mk.open .card .li.pick:hover{background:var(--accent-soft); color:var(--accent)}
+.mk.open .card .more{color:var(--accent); cursor:pointer; font-weight:600}
+.mk.open .card .more:hover{text-decoration:underline}
+.mk.open .card .back{
+  display:block; width:100%; text-align:left; border:0; background:transparent;
+  color:var(--ink-3); font-size:12px; cursor:pointer; padding:0 0 6px;
+  border-bottom:1px solid #f0eee9; margin-bottom:6px;
+}
+.mk.open .card .back:hover{color:var(--accent)}
 .mk.open .card u{text-decoration:none; color:var(--ink); font-weight:600}
 .mk.open .card small{color:var(--ink-4)}
 .mk.open.e .card b{color:#2b6698}

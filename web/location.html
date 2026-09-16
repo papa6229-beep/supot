@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 — supot</title>
-<link rel="stylesheet" href="styles.css?v=9">
+<link rel="stylesheet" href="styles.css?v=10">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -106,7 +106,7 @@ const METRICS = [
   {k:'pop_mid',       g:'인구', l:'중학생 나이 인구',        u:'명', sub:true, d:'만 12~14세 인구입니다.'},
 ];
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '9';
+const V = '10';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -349,18 +349,23 @@ function cardFor(p, all){
   return '<b>' + p.n + '</b>' + line.filter(Boolean).map(t => '<span>' + t + '</span>').join('');
 }
 
-/** 한 건물에 여러 곳이 있을 때의 말풍선 */
-function cardForSpot(group, all){
+/** 한 건물에 여러 곳이 있을 때의 말풍선. 이름을 누르면 그 곳 상세로 들어간다. */
+const SPOT_PREVIEW = 6;
+
+function cardForSpot(group, all, expanded){
   if (group.length === 1) return cardFor(group[0], all);
   const kinds = {};
   for (const g of group) kinds[g.k] = (kinds[g.k] || 0) + 1;
   const head = '<b>이 건물에 ' + group.length + '곳</b>' +
                '<span>' + Object.entries(kinds).map(([k, n]) => k + ' ' + n).join(' · ') + '</span>';
-  const shown = group.slice(0, 6).map(g => {
+  const limit = expanded ? group.length : SPOT_PREVIEW;
+  const shown = group.slice(0, limit).map((g, i) => {
     const age = g.y ? (new Date().getFullYear() - g.y + 1) + '년차' : '';
-    return '<span class="li">' + g.n + (age ? ' <small>' + age + '</small>' : '') + '</span>';
+    return '<span class="li pick" data-i="' + i + '">' + g.n +
+           (age ? ' <small>' + age + '</small>' : '') + '</span>';
   }).join('');
-  const rest = group.length > 6 ? '<span class="li more">외 ' + (group.length - 6) + '곳</span>' : '';
+  const rest = group.length > limit
+    ? '<span class="li more" data-all="1">외 ' + (group.length - limit) + '곳 모두 보기</span>' : '';
   return head + shown + rest;
 }
 
@@ -442,6 +447,25 @@ function drawMap(row, keepView){
         el.className = 'mk ' + shape;
         if (group.length > 1) el.dataset.n = group.length;
         el.innerHTML = '<div class="card">' + cardForSpot(group, pts) + '</div>';
+
+        // 목록에서 이름을 누르면 그 곳 상세로, '목록'을 누르면 되돌아온다.
+        const card = el.querySelector('.card');
+        const paintCard = (idx, expanded) => {
+          card.innerHTML = idx === null
+            ? cardForSpot(group, pts, expanded)
+            : '<button type="button" class="back">← 목록 ' + group.length + '곳</button>' +
+              cardFor(group[idx], pts);
+          bindCard();
+        };
+        const bindCard = () => {
+          for (const li of card.querySelectorAll('.li.pick'))
+            li.onclick = ev => { ev.stopPropagation(); paintCard(+li.dataset.i); };
+          const more = card.querySelector('.li.more');
+          if (more) more.onclick = ev => { ev.stopPropagation(); paintCard(null, true); };
+          const back = card.querySelector('.back');
+          if (back) back.onclick = ev => { ev.stopPropagation(); paintCard(null); };
+        };
+        if (group.length > 1) bindCard();
         const base = school ? 3 : 2;
         const mk = new kakao.maps.CustomOverlay({
           position: pos, content: el, yAnchor: 1, clickable: true, zIndex: base,
