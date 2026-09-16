@@ -112,8 +112,17 @@ def main() -> None:
     for e in estate:
         by_dong.setdefault((e["시도"], e["구시"], e["동"]), []).append(e["item"])
 
+    # 목록에 없는 동은 화면에서 고를 수 없으니 파일도 만들지 않는다.
+    listed = set()
+    regions = ROOT / "web/data/regions.json"
+    if regions.exists():
+        for r in json.loads(regions.read_text(encoding="utf-8"))["dong"]:
+            listed.add((r["sido"], r["parent"], r["name"]))
+
     index = {}
     for (sido, gusi, dong), g in places.groupby(["시도", "구시", "동"], sort=False):
+        if listed and (sido, gusi, dong) not in listed:
+            continue
         name = slug(sido, gusi, dong)
         items = []
         for r in g.itertuples():
@@ -142,8 +151,10 @@ def main() -> None:
             "s": sum(1 for i in items if i["t"] == "s"),
         }
 
-    # 학원·학교는 없는데 부동산만 있는 동도 담는다.
+    # 학원·학교는 없는데 부동산만 있는 동도 담는다. 목록에 있는 동만.
     for (sido, gusi, dong), items in by_dong.items():
+        if listed and (sido, gusi, dong) not in listed:
+            continue
         name = slug(sido, gusi, dong)
         (OUT_DIR / f"{name}.json").write_text(
             json.dumps({"sido": sido, "gusi": gusi, "dong": dong, "items": items},

@@ -36,6 +36,8 @@ BASE_YM = "2026-08"
 NEW_YEARS = 3                       # '최근에 생긴 곳'으로 볼 기간
 SIDO = {"서울특별시교육청": "서울", "경기도교육청": "경기"}
 UNKNOWN_DONG = "(동 미상)"
+# 이보다 학생이 적은 동은 목록에 올리지 않는다. 학원 자리로 볼 곳이 아니다.
+MIN_POP = 100
 
 # --- 영어 판별 ---------------------------------------------------------------
 # '어학원'은 국어학원(658곳)·헤어학원·중국어학원 등을 끌고 오므로 앞글자를 배제한다.
@@ -314,10 +316,21 @@ def build(aca: pd.DataFrame, sch: pd.DataFrame, keys: list[str], cutoff: int) ->
 
 
 def attach_population(rows: list[dict], sums: dict, keyer) -> int:
-    """집계 결과에 인구를 붙인다. 못 붙인 행 수를 돌려준다."""
+    """집계 결과에 인구를 붙인다. 못 붙인 행 수를 돌려준다.
+
+    학원 주소는 '양지면'인데 인구 자료는 '양지읍'인 경우가 있다. 읍·면 승격을
+    한쪽만 반영한 것이라, 동 이름을 고르던 때와 같이 여기서도 한 번 더 본다.
+    """
     missing = 0
     for row in rows:
-        band = sums.get(keyer(row))
+        key = keyer(row)
+        band = sums.get(key)
+        if band is None and isinstance(key[-1], str):
+            for a, b in (("면", "읍"), ("읍", "면")):
+                if key[-1].endswith(a):
+                    band = sums.get(key[:-1] + (key[-1][:-1] + b,))
+                    if band is not None:
+                        break
         if band is None:
             missing += 1
         for name in AGE_BANDS:
@@ -370,9 +383,12 @@ def main() -> None:
             "dong_total": len(dong),
         },
         "gu": sorted(gu, key=lambda r: -r["eng_total"]),
-        # 동을 못 읽어낸 학원 묶음은 지역이 아니라서 목록에서 뺀다.
-        # 그 학원들도 구·시 집계에는 그대로 들어가 있다.
-        "dong": sorted((r for r in dong if r["name"] != UNKNOWN_DONG),
+        # 목록에 올리지 않는 것: 동을 못 읽어낸 학원 묶음(지역이 아니다)과
+        # 학생이 거의 없는 동. 종로 관철동처럼 사무실·상가만 있는 법정동은
+        # 학원 자리를 고를 때 볼 일이 없다. 인구를 못 붙인 동은 '학생이 없다'는
+        # 뜻이 아니라 우리가 못 맞춘 것이라 그대로 둔다.
+        "dong": sorted((r for r in dong if r["name"] != UNKNOWN_DONG
+                        and not (r["pop_target"] is not None and r["pop_target"] < MIN_POP)),
                        key=lambda r: -r["eng_total"]),
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
