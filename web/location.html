@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 — supot</title>
-<link rel="stylesheet" href="styles.css?v=17">
+<link rel="stylesheet" href="styles.css?v=18">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -106,7 +106,7 @@ const METRICS = [
   {k:'pop_mid',       g:'인구', l:'중학생 나이 인구',        u:'명', sub:true, d:'만 12~14세 인구입니다.'},
 ];
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '17';
+const V = '18';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -235,25 +235,24 @@ function renderDetail(list){
       '<div class="stat"><span class="k">' + k + '</span>' +
       '<span class="v">' + v + '</span>' +
       '<span class="r">' + (extra || '') + '</span></div>';
-    let out = '<div><p class="grp-title">부동산 <small>최근 2년 · 매매만</small></p>';
+    // 아파트는 학부모 지갑을 보는 것이라 매매가를 쓰고,
+    // 상가는 빌릴 자리라 매매가 대신 '얼마에 빌리나'만 본다.
+    let out = '<div><p class="grp-title">부동산</p>';
     if (e.apt)
-      out += stat('아파트 매매 ㎡당', won(e.apt.per_m2)) +
-             stat('아파트 중간 매매가', won(e.apt.price), '전용 ' + e.apt.area + '㎡') +
+      out += stat('아파트 중간 매매가', won(e.apt.price), Math.round(e.apt.area / 3.3) + '평 기준') +
              stat('매매 건수', e.apt.n.toLocaleString('ko-KR') + '건', e.apt.complexes + '개 단지');
-    if (e.nrg){
-      out += stat('상가 매매 ㎡당', won(e.nrg.per_m2), '1·2종 근생');
-      const zones = Object.entries(e.nrg.zones).slice(0, 2).map(([k]) => k).join(' · ');
-      if (zones) out += stat('용도지역', '<small>' + zones + '</small>', '');
-    }
+
     // 임대 시세는 상권 표본 조사라 구·시 단위까지만 있다.
     const r = RENT && RENT.gusi[row.sido + '/' + (row.parent || row.name)];
     if (r){
-      out += '<div class="sep">소규모상가 임대 <small>' + RENT.quarter + ' · 추정치</small></div>' +
-             stat('㎡당 월 환산임대료', Math.round(r.rent * 1000).toLocaleString('ko-KR') + '원',
-                  '보증금 포함') +
-             stat('공실률', r.vacancy + '%') +
-             stat('조사 상권', '<small>' + r.areas.slice(0, 3).join(' · ') + '</small>', '');
+      out += '<div class="sep">상가 빌리기 <small>' + RENT.quarter + ' · 구 평균 어림값</small></div>' +
+             stat('20평이면 월세', Math.round(r.rent * 1000 * 66 / 10_000).toLocaleString('ko-KR') + '만원',
+                  '보증금까지 월세로 친 값') +
+             stat('비어 있는 가게', r.vacancy + '%', '높으면 자리는 많고 장사는 어렵다');
     }
+    if (e.nrg)
+      out += stat('학원 가능 건물', e.nrg.n_academy_ok.toLocaleString('ko-KR') + '곳',
+                  '최근 2년 거래된 ' + e.nrg.n.toLocaleString('ko-KR') + '곳 중');
     return out + '</div>';
   }
 
@@ -341,6 +340,18 @@ function loadKakao(){
 // ㎡당 거래가 구간. 전체 데이터를 3등분한 값이라 동네가 달라도 같은 잣대가 된다.
 const PRICE_BANDS = [12_000_000, 20_000_000];
 const priceLevel = m2 => m2 >= PRICE_BANDS[1] ? 3 : (m2 >= PRICE_BANDS[0] ? 2 : 1);
+// 건축법상 학원·교습소가 들어갈 수 있는 건물인지. 전문용어 대신 결론만 쓴다.
+// 제2종근린생활(500㎡ 미만)과 교육연구시설이 학원 자리다. 제1종은 학원이 빠져 있지만
+// 같은 근린생활시설군이라 건축물대장 기재변경으로 바꿀 수 있다.
+function shopUse(kind){
+  const k = kind || '';
+  if (k.startsWith('제2종근린생활') || k.startsWith('교육연구'))
+    return {text: '학원 가능', level: 3};
+  if (k.startsWith('제1종근린생활'))
+    return {text: '용도 바꾸면 가능', level: 2};
+  return {text: '학원은 어려움', level: 1};
+}
+
 const manwon = v => Math.round(v / 10_000).toLocaleString('ko-KR') + '만원';
 const eok = v => v >= 100_000_000
   ? (v / 100_000_000).toFixed(1).replace(/\.0$/, '') + '억' : manwon(v);
@@ -382,36 +393,38 @@ function cardFor(p, all){
     } else {
       line.push('<u>반경 ' + SCHOOL_RADIUS + 'm 안에 영어학원이 없습니다</u>');
     }
-  } else if (p.t === 'p' || p.t === 'g'){
-    const shop = p.t === 'g';
-    line.push([shop ? p.k : '아파트', p.y ? p.y + '년' : null, p.z].filter(Boolean).join(' · '));
-    line.push('<u>매매 ㎡당 ' + manwon(p.m2) + '</u>');
-    line.push('중간 매매가 ' + eok(p.p) + ' <small>전용 ' + p.ar + '㎡</small>');
-    line.push('최근 2년 매매 ' + p.c + '건');
+  } else if (p.t === 'g'){
+    // 상가는 빌리는 것이지 사는 게 아니다. 매매가 대신 '얼마에 빌리나'만 남긴다.
+    const pyeong = Math.round(p.ar / 3.3);
+    line.push('<u>' + shopUse(p.k).text + '</u>');
 
-    // 한 건물만 보면 몇 건에 휘둘린다. 주변 실거래를 같이 세어 시세를 잡는다.
-    const near = all.filter(x => x.t === p.t && metersBetween(p, x) <= NEARBY_RADIUS);
-    const deals = near.reduce((n, x) => n + (x.c || 0), 0);
-    // 두세 건으로 시세를 말하면 한 건에 휘둘린다. 최소 5곳은 있어야 보여준다.
+    // 임대료 표본은 330㎡ 이하 소규모상가다. 그보다 큰 건물엔 갖다 붙이지 않는다.
+    const r = p.ar <= 330 && RENT && RENT.gusi[MAP_REGION.sido + '/' + MAP_REGION.gusi];
+    if (r){
+      // ㎡당 값은 와닿지 않는다. 거래된 호실 넓이를 곱해 월 얼마인지로 바꾼다.
+      const monthly = Math.round(r.rent * 1000 * p.ar / 10_000);
+      line.push(pyeong + '평에 월세 <b>' + monthly.toLocaleString('ko-KR') + '만원</b>쯤' +
+                ' <small>여기서 거래된 호실 크기</small>');
+      line.push('<small>' + MAP_REGION.gusi + ' 평균으로 어림한 값. 보증금까지 월세로 쳤습니다.</small>');
+    } else {
+      line.push(pyeong + '평 <small>여기서 거래된 호실 크기</small>');
+    }
+    line.push('<hr><small>' + (p.y ? p.y + '년에 지은 건물 · ' : '') +
+              '최근 2년 거래 ' + p.c + '건</small>');
+  } else if (p.t === 'p'){
+    // 아파트는 매매가가 곧 학부모 지갑이라 그대로 둔다.
+    line.push([p.y ? p.y + '년' : null, Math.round(p.ar / 3.3) + '평'].filter(Boolean).join(' · '));
+    line.push('<u>중간 매매가 ' + eok(p.p) + '</u>');
+
+    // 한 단지만 보면 몇 건에 휘둘린다. 주변 실거래를 같이 세어 시세를 잡는다.
+    const near = all.filter(x => x.t === 'p' && metersBetween(p, x) <= NEARBY_RADIUS);
     if (near.length >= 5){
       const mid = near.map(x => x.m2).sort((a, b) => a - b)[near.length >> 1];
-      line.push('<hr>주변 ' + NEARBY_RADIUS + 'm ' + (shop ? '상가' : '아파트') +
-                ' ㎡당 <b>' + manwon(mid) + '</b> <small>' + near.length +
-                (shop ? '개 건물 · ' : '개 단지 · ') + deals + '건 거래</small>');
+      line.push('<small>주변 ' + NEARBY_RADIUS + 'm 시세는 평당 ' +
+                Math.round(mid * 3.3 / 10_000).toLocaleString('ko-KR') + '만원 · ' +
+                near.length + '개 단지</small>');
     }
-    if (shop){
-      const r = RENT && RENT.gusi[MAP_REGION.sido + '/' + MAP_REGION.gusi];
-      if (r){
-        // ㎡당 값은 와닿지 않는다. 이 건물 면적을 곱해 월 얼마인지로 바꿔 보여준다.
-        const perM2 = r.rent * 1000;
-        const monthly = Math.round(perM2 * p.ar / 10_000);
-        line.push('<hr>이 넓이면 월 <b>' + monthly.toLocaleString('ko-KR') + '만원</b> 쯤' +
-                  ' <small>전용 ' + p.ar + '㎡ · ' + Math.round(p.ar / 3.3) + '평</small>');
-        line.push('<small>' + MAP_REGION.gusi + ' 소규모상가 ㎡당 월 ' +
-                  Math.round(perM2).toLocaleString('ko-KR') + '원 · 보증금 포함 환산 · 구 평균 추정치</small>');
-      }
-      if (p.k.includes('근린생활')) line.push('<u>학원이 들어갈 수 있는 용도입니다</u>');
-    }
+    line.push('<small>최근 2년 매매 ' + p.c + '건</small>');
   } else {
     const age = p.y ? (new Date().getFullYear() - p.y + 1) : null;
     line.push([p.k, age ? age + '년차' : null].filter(Boolean).join(' · '));
@@ -523,7 +536,7 @@ function drawMap(row, keepView){
         }
         const el = document.createElement('div');
         const shape = p.t === 'p' ? 'p' + priceLevel(p.m2)
-                    : p.t === 'g' ? 'g' + priceLevel(p.m2)
+                    : p.t === 'g' ? 'g' + shopUse(p.k).level
                     : !school ? 'a' : (p.k === '중학교' ? 'm' : 'e');
         el.className = 'mk ' + shape;
         if (group.length > 1) el.dataset.n = group.length;

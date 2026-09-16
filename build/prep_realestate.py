@@ -3,8 +3,8 @@
 
 아파트  단지 하나를 지도 핀 하나로 삼는다. 거래가 여러 건이면 ㎡당 가격의
         중간값으로 대표한다. 평수가 달라도 단지끼리 견줄 수 있어야 해서다.
-상가    학원이 들어갈 수 있는 제2종근린생활 위주로 동별 시세와 용도지역을 낸다.
-        거래가 드문드문해 개별 위치보다 동 단위 요약이 쓸모 있다.
+상가    학원이 들어갈 수 있는 건물이 그 동네에 얼마나 되는지를 센다.
+        상가는 사는 게 아니라 빌리는 것이라 매매가는 곁가지로만 남긴다.
 
 입력  data/raw/realestate_apt_2026-08.csv
       data/raw/realestate_nrg_2026-08.csv
@@ -25,8 +25,10 @@ SHOP_OUT = ROOT / "data/geo/nrg_buildings.csv"
 SUMMARY_OUT = ROOT / "web/data/realestate.json"
 
 SIDO_BY_PREFIX = {"11": "서울", "41": "경기"}
-# 학원·교습소가 들어갈 수 있는 건물 용도
-ACADEMY_USE = ("제1종근린생활", "제2종근린생활")
+# 학원·교습소가 들어갈 수 있는 건물 용도.
+# 건축법 시행령 별표1: 학원은 제2종근린생활시설(바닥면적 500㎡ 미만)이고,
+# 그보다 크면 교육연구시설이다. 제1종에는 학원이 없다.
+ACADEMY_USE = ("제2종근린생활", "교육연구")
 
 
 def money(series: pd.Series) -> pd.Series:
@@ -156,7 +158,7 @@ def main() -> None:
     print(f"저장: {SUMMARY_OUT.relative_to(ROOT)}  동 {len(summary):,}개 "
           f"({SUMMARY_OUT.stat().st_size/1024:.0f} KB)")
     print(f"  아파트 거래 {len(apt):,}건 / 상업업무용 {len(nrg):,}건 "
-          f"(그중 1·2종근생 {len(academy_ok):,}건)")
+          f"(그중 학원 가능 {len(academy_ok):,}건)")
 
 
 if __name__ == "__main__":
