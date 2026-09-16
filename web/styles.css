@@ -496,3 +496,6 @@ body.few-mode .meta .legend{display:none}
   .tile.empty .t{margin-top:0; font-size:16px}
   .tile.empty .d{display:none}
 }
+
+/* 아직 아무 지역도 고르지 않았을 때 */
+.detail .dempty{padding:34px 22px; text-align:center; color:var(--ink-3); font-size:15px; word-break:keep-all}

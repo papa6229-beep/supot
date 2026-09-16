@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 분석 — Chalkmap</title>
-<link rel="stylesheet" href="styles.css?v=29">
+<link rel="stylesheet" href="styles.css?v=30">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -17,11 +17,6 @@
     <a class="home-link" href="index.html">← 메뉴</a>
     <h1>입지 · 상권 분석</h1>
     <p class="where" id="basis"></p>
-
-    <div class="field gapf">
-      <span class="lbl">학교·아이 수에 비해 영어학원이 적은 곳</span>
-      <div class="seg" id="gapseg"></div>
-    </div>
 
     <div class="field normal-only">
       <label for="selA">무엇으로 순위를 매길까요</label>
@@ -46,6 +41,11 @@
     <div class="field" id="mktfield" style="display:none">
       <label for="mkt">시장 유형 <small>동 단위 · 서울+인접 경기</small></label>
       <select class="pick" id="mkt"></select>
+    </div>
+
+    <div class="field gapf">
+      <span class="lbl">학교·아이 수에 비해 영어학원이 적은 곳</span>
+      <div class="seg" id="gapseg"></div>
     </div>
 
     <div class="field normal-only">
@@ -130,7 +130,7 @@ const kindLabel = k => (ACA_KIND[k] && ACA_KIND[k].label) || k;
 
 const indent = m => m.sub ? '  '.repeat(m.sub) + '└ ' : '';
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '29';
+const V = '30';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -513,9 +513,21 @@ function cell(value, max, med, color, lead){
          '</div>';
 }
 
+// 목록에서 지역을 누르면 아래 상세로 내려가 보여준다.
+function showDetail(){
+  const top = detail.getBoundingClientRect().top + window.scrollY - 16;
+  const goal = Math.min(top, document.documentElement.scrollHeight - window.innerHeight);
+  window.scrollTo({top, behavior: 'smooth'});
+  // 부드러운 스크롤을 건너뛰는 환경이 있다. 안 움직였으면 바로 옮긴다.
+  setTimeout(() => { if (Math.abs(window.scrollY - goal) > 40) window.scrollTo(0, top); }, 700);
+}
+
 function renderDetail(list){
-  const row = list.find(r => keyOf(r) === state.picked) || list[0];
-  if (!row){ detail.innerHTML = ''; return; }
+  const row = list.find(r => keyOf(r) === state.picked);
+  if (!row){
+    detail.innerHTML = '<div class="dempty">목록에서 지역을 누르면 요약 · 학원 목록 · 지도 · 시장 해석을 볼 수 있습니다.</div>';
+    return;
+  }
   state.picked = keyOf(row);
 
   // 이 지역이 전체에서 몇 번째인지 — 지표마다 따로 센다.
@@ -999,8 +1011,8 @@ function render(){
   fillSelect(selA, METRICS, state.a);
   renderCols();
 
-  segment(unit,   [{k:'gu', l:'구 · 시'}, {k:'dong', l:'동'}], () => state.unit, k => state.unit = k);
-  segment(region, [{k:'all', l:'서울+경기'}, {k:'서울', l:'서울'}, {k:'경기', l:'경기'}],
+  segment(unit,   [{k:'dong', l:'동'}, {k:'gu', l:'구 · 시'}], () => state.unit, k => state.unit = k);
+  segment(region, [{k:'서울', l:'서울'}, {k:'경기', l:'경기'}, {k:'all', l:'서울+경기'}],
           () => state.region, k => state.region = k);
   segment(order,  [{k:'desc', l:'많은 순'}, {k:'asc', l:'적은 순'}],
           () => state.desc ? 'desc' : 'asc', k => state.desc = (k === 'desc'));
@@ -1056,7 +1068,7 @@ function render(){
   }
   rows.innerHTML = html;
   for (const el of rows.querySelectorAll('.row'))
-    el.onclick = () => { state.picked = el.dataset.key; render(); };
+    el.onclick = () => { state.picked = el.dataset.key; render(); showDetail(); };
 
   pager.innerHTML = list.length <= PER_PAGE ? '' :
     '<button type="button" id="prev"' + (state.page === 0 ? ' disabled' : '') + '>‹ 이전</button>' +
@@ -1121,7 +1133,7 @@ function renderFew(){
   }
   rows.innerHTML = html + '</div>';
   for (const el of rows.querySelectorAll('.row'))
-    el.onclick = () => { state.picked = el.dataset.key; render(); };
+    el.onclick = () => { state.picked = el.dataset.key; render(); showDetail(); };
 
   pager.innerHTML = list.length <= PER_PAGE ? '' :
     '<button type="button" id="prev"' + (state.page === 0 ? ' disabled' : '') + '>‹ 이전</button>' +
@@ -1151,6 +1163,8 @@ selA.onchange = e => {
   render();
 };
 q.oninput = e => { state.q = e.target.value; state.page = 0; render(); };
+q.value = '';
+window.addEventListener('pageshow', e => { if (e.persisted) location.reload(); });
 
 fetch('data/regions.json?v=' + V)
   .then(r => r.json())
