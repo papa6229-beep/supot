@@ -194,3 +194,35 @@ select.add-col{
   .nm{font-size:14.5px}
   .val{font-size:15px}
 }
+
+
+/* ---------- 지도 ---------- */
+.maparea{position:relative}
+#map{width:100%; height:440px; border-radius:9px; overflow:hidden; background:#eceae5}
+.mapmsg{display:flex; align-items:center; justify-content:center; height:100%;
+        text-align:center; color:var(--ink-3); line-height:1.8; font-size:14px}
+.maplegend{display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+           margin-top:12px; font-size:13.5px; color:var(--ink-2)}
+.maplegend .pin{display:inline-block; width:11px; height:11px; border-radius:50%;
+                margin-right:6px; vertical-align:-1px}
+.maplegend .pin.s{background:#2f6ea8}
+.maplegend .pin.a{background:#d97a2b}
+.maplegend .ring{display:flex; align-items:center; gap:6px; cursor:pointer}
+.maplegend .hint{margin-left:auto; color:var(--ink-3); font-variant-numeric:tabular-nums}
+
+/* 지도 위 핀. 이름은 눌렀을 때만 펼친다 — 다 펼치면 서로 가린다. */
+.mk{position:relative; transform:translateY(6px); cursor:pointer; white-space:nowrap}
+.mk::after{content:''; position:absolute; left:50%; bottom:-6px; width:10px; height:10px;
+           margin-left:-5px; border-radius:50% 50% 50% 0; transform:rotate(-45deg);
+           box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.mk.s::after{background:#2f6ea8}
+.mk.a::after{background:#d97a2b}
+.mk b, .mk span{display:none}
+.mk.open{z-index:9}
+.mk.open b{display:block; background:#fff; border:1px solid var(--line-2); border-radius:7px;
+           padding:6px 10px 3px; font-size:13px; font-weight:600; box-shadow:0 2px 8px rgba(0,0,0,.14)}
+.mk.open span{display:block; background:#fff; border:1px solid var(--line-2); border-top:0;
+              border-radius:0 0 7px 7px; padding:0 10px 6px; font-size:12px; color:var(--ink-3);
+              box-shadow:0 2px 8px rgba(0,0,0,.14)}
+.mk.open.s b{color:#2f6ea8}
+.mk.open.a b{color:#b8631f}

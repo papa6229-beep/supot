@@ -112,8 +112,9 @@ def dong_candidates(detail: str) -> list[str]:
     return out
 
 
-# 건물 이름이 동 이름처럼 보이는 것들. '상가동 302호'가 대표적이다.
-NOT_A_DONG = {"상가동", "상가", "별관", "본관", "후관", "신관", "관리동", "사무동", "기숙사동"}
+# 건물 이름이 동 이름처럼 보이는 것들. '상가동 302호', '강촌라이프상가'가 대표적이다.
+# 법정동 이름에는 이런 말이 들어가지 않으므로 통째로 걸러도 안전하다.
+NOT_A_DONG = re.compile(r"상가|아파트|빌딩|타워|프라자|플라자|센터|별관|본관|신관|관리동|사무동|기숙사")
 
 
 def pick_dong(detail: str, known: set[str]) -> str:
@@ -122,7 +123,7 @@ def pick_dong(detail: str, known: set[str]) -> str:
     '(상가동)'처럼 아파트 상가 동호수가 앞 괄호에 오는 경우가 1천 건 넘게 있어서,
     연계정보에 있는 이름인지 확인하고 고른다.
     """
-    candidates = [c for c in dong_candidates(detail) if c not in NOT_A_DONG]
+    candidates = [c for c in dong_candidates(detail) if not NOT_A_DONG.search(c)]
     for name in candidates:
         if name in known:
             return name
