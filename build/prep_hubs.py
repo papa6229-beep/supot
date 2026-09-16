@@ -21,6 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PLACES = ROOT / "web/data/places"
 OUT = ROOT / "web/data/hubs.json"
+RADIUS_KM = 1.5
 
 # id, 이름, 학원가를 이루는 동, 통설 설명, 통설상 학생이 오는 곳(구·시 단위, 동 단위)
 HUBS = [
@@ -82,8 +83,10 @@ def main() -> None:
 
     dong_pos, hub_pts = {}, defaultdict(list)
     hub_of = {k: h["id"] for h in HUBS for k in h["dongs"]}
+    every = []                                   # 반경 세기용: 모든 동의 학원·학교
     for key, meta in index.items():
         items = json.loads((PLACES / f'{meta["f"]}.json').read_text(encoding="utf-8"))["items"]
+        every += [i for i in items if i["t"] in ("a", "s")]
         pts = [(i["lat"], i["lng"]) for i in items if i["t"] in ("a", "s")]
         if pts:
             dong_pos[key] = center(pts)
@@ -93,7 +96,13 @@ def main() -> None:
     hubs = []
     for h in HUBS:
         c = center(hub_pts[h["id"]])
-        hubs.append({"id": h["id"], "name": h["name"], "lat": round(c[0], 5), "lng": round(c[1], 5),
+        # 동 경계와 상관없이 중심에서 1.5km 안. 학원가는 동 경계를 넘어 퍼져 있다.
+        near = [i for i in every if km(c, (i["lat"], i["lng"])) <= RADIUS_KM]
+        ring = {"eng": sum(i["t"] == "a" for i in near),
+                "inst": sum(i["t"] == "a" and i["k"] == "교습소" for i in near),
+                "sch": sum(i["t"] == "s" for i in near),
+                "stu": sum(i.get("tg", 0) for i in near if i["t"] == "s")}
+        hubs.append({"id": h["id"], "name": h["name"], "lat": round(c[0], 5), "lng": round(c[1], 5), "ring": ring,
                      "dongs": h["dongs"], "eng": sum(eng.get(k, 0) for k in h["dongs"]),
                      "lore": h["lore"], "from_gu": h["from_gu"], "from_dong": h["from_dong"],
                      "kind": h.get("kind", "doc")})
@@ -110,13 +119,14 @@ def main() -> None:
     gus = {k: nearest(center(v)) for k, v in by_gu.items()}
 
     OUT.write_text(json.dumps({
+        "radius_km": RADIUS_KM,
         "source": "학원가 목록·유입 흐름: 학부모 조사 문서(2026.09) — 위키·블로그 통설, 정량 통계 아님. 거리: 우리 좌표로 잰 직선거리.",
         "hubs": hubs, "dongs": dongs, "gus": gus, "local_lore": LOCAL_LORE,
     }, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     print(f"저장: {OUT.relative_to(ROOT)}  ({OUT.stat().st_size / 1024:.0f} KB)  동 {len(dongs)} · 구시 {len(gus)}")
     for h in hubs:
-        print(f"  {h['name']:<14} 영어학원 {h['eng']:>4}곳  ({h['lat']}, {h['lng']})")
+        print(f"  {h['name']:<14} 영어학원 {h['eng']:>4}곳 · 반경 {RADIUS_KM}km {h['ring']['eng']:>4}곳  ({h['lat']}, {h['lng']})")
     for k in ["경기/남양주시/다산동", "경기/의정부시/신곡동", "경기/하남시/망월동", "경기/김포시/장기동", "서울/은평구/진관동", "경기/화성시/반송동"]:
         print("  ", k, dongs.get(k))
 

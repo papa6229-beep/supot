@@ -6,14 +6,14 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 분석 — Chalkmap</title>
-<link rel="stylesheet" href="styles.css?v=42">
+<link rel="stylesheet" href="styles.css?v=43">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 <script>
 // 브라우저가 옛 화면을 붙잡고 있으면 새 버전으로 한 번 다시 불러온다.
 // 올릴 때마다 이 숫자와 version.json 을 같이 올린다.
 (function(){
-  var PAGE_V = '42';
+  var PAGE_V = '43';
   fetch('version.json?t=' + Date.now(), {cache: 'no-store'})
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(d){
@@ -162,7 +162,7 @@ const kindLabel = k => (ACA_KIND[k] && ACA_KIND[k].label) || k;
 
 const indent = m => m.sub ? '  '.repeat(m.sub) + '└ ' : '';
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '42';
+const V = '43';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -250,6 +250,74 @@ function median(values){
   const m = v.length >> 1;
   const mid = v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
   return Number.isInteger(v[m]) && (v.length % 2 || Number.isInteger(v[m - 1])) ? Math.round(mid) : Math.round(mid * 10) / 10;
+}
+
+// ---------- 학원가 단위 ----------
+// 큰 학원가를 이루는 동의 숫자를 더해 한 줄로 만든다. 수강료는 동별 중간값의 가운데.
+function buildHubRows(){
+  const byKey = Object.fromEntries(DATA.dong.map(r => [keyOf(r), r]));
+  DATA.hub = HUBS.hubs.map(h => {
+    const members = h.dongs.map(k => byKey[k]).filter(Boolean);
+    const row = {sido: members[0].sido, parent: [...new Set(members.map(r => r.parent))].join('·'),
+                 name: h.name, hub: h.id, members, hub_km: 0};
+    for (const m of METRICS){
+      if (m.k === 'hub_km') continue;
+      const vals = members.map(r => r[m.k]).filter(v => v !== null && v !== undefined);
+      row[m.k] = !vals.length ? null
+               : m.k === 'fee_median' ? median(vals)
+               : vals.reduce((a, b) => a + b, 0);
+    }
+    return row;
+  });
+}
+
+const hubOf = row => row.hub ? HUBS.hubs.find(h => h.id === row.hub) : null;
+
+// 학원가면 속한 동 파일을 모두 받아 합친다.
+function rowPlaces(row){
+  if (!row.hub) return getPlaces(placeFile(row));
+  const key = 'hub:' + row.hub;
+  if (PLACE_CACHE[key]) return Promise.resolve(PLACE_CACHE[key]);
+  return Promise.all(row.members.map(r => getPlaces(placeFile(r)))).then(all => {
+    const ok = all.filter(Boolean);
+    if (!ok.length) return null;
+    return (PLACE_CACHE[key] = {sido: ok[0].sido, gusi: ok[0].gusi, dong: row.name,
+                                items: ok.flatMap(d => d.items)});
+  });
+}
+
+// 학원가 시장 해석: 통설·데이터 설명, 속한 동의 유형, 중심 반경 숫자
+function hubMarket(row){
+  const h = hubOf(row);
+  const ring = h.ring;
+  const types = row.members.map(r => {
+    const m = MARKET && MARKET.dongs[keyOf(r)];
+    return '<div class="hrow"><span class="hk">' + r.name + '</span>' +
+      (m ? '<b><span class="mcode f' + m.code[0] + '">' + m.code + '</span> ' + MARKET.types[m.code].name + '</b>' +
+           '<span class="hv"><span class="mgrade ' + m.grade + '">' + MARKET.grades[m.grade].label + '</span></span>'
+         : '<b class="dim">시장 분석 대상 아님</b>') + '</div>';
+  }).join('');
+  const from = h.from_gu.length
+    ? '<p><b>학생이 온다고 알려진 곳</b> — ' + h.from_gu.map(g => g.split('/')[1]).join(' · ') +
+      (h.from_dong.length ? ' · ' + h.from_dong.map(k => k.split('/')[2]).join(' · ') : '') + '</p>' : '';
+  return '<section class="msec hub"><h4>' + h.name + '</h4>' +
+    (h.kind === 'data'
+      ? '<p class="hdata"><span class="tag data">데이터</span>조사 문서의 큰 학원가 목록에는 없지만, 우리 데이터로 영어학원이 ' +
+        fmt(h.eng) + '곳 모여 있어 큰 학원가로 넣었습니다.</p>'
+      : '<div class="hlore"><span class="tag">통설</span><p>' + h.lore + '</p>' + from + '</div>') +
+    '</section>' +
+    '<section class="msec"><h4>중심에서 반경 ' + HUBS.radius_km + 'km <small class="dim">동 경계와 상관없이</small></h4>' +
+      '<div class="ringgrid">' +
+        '<div><span>영어 학원·교습소</span><b>' + fmt(ring.eng) + '</b>곳</div>' +
+        '<div><span>그중 교습소</span><b>' + fmt(ring.inst) + '</b>곳</div>' +
+        '<div><span>초·중학교</span><b>' + fmt(ring.sch) + '</b>곳</div>' +
+        '<div><span>학교 재학생 (초4~중3)</span><b>' + fmt(ring.stu) + '</b>명</div>' +
+      '</div>' +
+      '<p class="mhint">학원가 중심은 속한 동 영어학원들의 가운데입니다. 목록의 숫자는 속한 동(' +
+        row.members.map(r => r.name).join(' · ') + ')을 더한 값이라 이 숫자와 다를 수 있습니다.</p>' +
+    '</section>' +
+    '<section class="msec"><h4>속한 동의 시장 유형</h4>' + types + '</section>' +
+    '<p class="msrc">출처: 학부모 조사 문서(2026.09)의 학원가·통설, 개원시장 동별 분석(2026.09), 나이스·학교알리미</p>';
 }
 
 // ---------- 시장 해석 ----------
@@ -427,8 +495,9 @@ function hubSection(row){
 function drawMarket(row){
   const box = document.getElementById('mview');
   if (!box) return;
+  if (state.unit === 'hub' && row.hub){ box.innerHTML = hubMarket(row); return; }
   if (state.unit !== 'dong'){
-    box.innerHTML = '<div class="mapmsg">시장 해석은 <b>동 단위</b>에서만 볼 수 있습니다.</div>';
+    box.innerHTML = '<div class="mapmsg">시장 해석은 <b>동 · 학원가 단위</b>에서 볼 수 있습니다.</div>';
     return;
   }
   if (!MARKET){ box.innerHTML = '<div class="mapmsg">불러오는 중…</div>'; return; }
@@ -568,7 +637,7 @@ function fewRows(list){
 
 function rowsFor(){
   // 주소에 동이 없어 못 가른 것들은 지역이 아니므로 순위에서 뺀다.
-  let list = DATA[state.unit].filter(r => r.name !== UNKNOWN_DONG);
+  let list = (DATA[state.unit] || []).filter(r => r.name !== UNKNOWN_DONG);
   if (state.region !== 'all') list = list.filter(r => r.sido === state.region);
   // 학원 적은 순은 검색어·시장 유형과 상관없이 단위·지역 전체로 보통을 잡는다.
   if (state.gap) list = fewRows(list);
@@ -690,8 +759,23 @@ function renderDetail(list){
     : Math.round(v / 10_000).toLocaleString('ko-KR') + '만원';
 
   /** 부동산은 따로 받은 자료라 있을 때만 칸을 만든다. */
+  // 학원가면 속한 동의 부동산을 합친다. 매매가는 동별 중간값의 가운데.
+  function estateOf(){
+    if (!ESTATE) return null;
+    if (!row.hub) return ESTATE.dongs[row.sido + '/' + (row.parent || '') + '/' + row.name];
+    const es = row.members.map(r => ESTATE.dongs[keyOf(r)]).filter(Boolean);
+    const apts = es.map(x => x.apt).filter(Boolean), nrgs = es.map(x => x.nrg).filter(Boolean);
+    const sum = (arr, f) => arr.reduce((a, x) => a + x[f], 0);
+    if (!apts.length && !nrgs.length) return null;
+    return {
+      apt: apts.length ? {price: median(apts.map(a => a.price)), area: median(apts.map(a => a.area)),
+                          n: sum(apts, 'n'), complexes: sum(apts, 'complexes')} : null,
+      nrg: nrgs.length ? {n: sum(nrgs, 'n'), n_academy_ok: sum(nrgs, 'n_academy_ok')} : null,
+    };
+  }
+
   function estateBlock(){
-    const e = ESTATE && ESTATE.dongs[row.sido + '/' + (row.parent || '') + '/' + row.name];
+    const e = estateOf();
     if (!e) return '';
     const stat = (k, v, extra) =>
       '<div class="stat"><span class="k">' + k + '</span>' +
@@ -727,8 +811,15 @@ function renderDetail(list){
            '</div>';
   }).join('');
   // 학교와 인구는 항목이 적어 한 칸에 같이 둔다.
+  const hubRing = (() => {
+    const h = row.hub && HUBS && hubOf(row);
+    if (!h) return '';
+    const st = (k, v) => '<div class="stat"><span class="k">' + k + '</span><span class="v">' + fmt(v) + '</span></div>';
+    return '<div class="sep">중심에서 반경 ' + HUBS.radius_km + 'km <small>동 경계와 상관없이</small></div>' +
+      st('영어 학원·교습소', h.ring.eng) + st('초·중학교', h.ring.sch) + st('학교 재학생 (초4~중3)', h.ring.stu);
+  })();
   const groups =
-    '<div><p class="grp-title">학원</p>' + statRows('학원') + '</div>' +
+    '<div><p class="grp-title">학원</p>' + statRows('학원') + hubRing + '</div>' +
     '<div><p class="grp-title">학교 · 인구</p>' + statRows('학교') +
       '<div class="sep">인구</div>' + statRows('인구') + '</div>' +
     estateBlock();
@@ -764,7 +855,8 @@ function renderDetail(list){
 
   detail.innerHTML =
     '<div class="dhead"><h3>' + row.name + '</h3>' +
-      (row.parent ? '<span class="p">' + row.parent + '</span>' : '') +
+      (row.hub ? '<span class="p">' + row.parent + ' ' + row.members.map(r => r.name).join(' · ') + '</span>'
+               : row.parent ? '<span class="p">' + row.parent + '</span>' : '') +
       '<span class="lead">영어학원 <b>' + fmt(row.eng_total) + '</b>곳</span></div>' +
     '<div class="tabs">' + tab('summary', '요약', true) +
       tab('list', '학원 목록', true) + tab('map', '지도', true) + tab('market', '시장 해석', true) + '</div>' +
@@ -967,12 +1059,12 @@ const LIST_SORT = {
 function drawList(row){
   const box = document.getElementById('alist');
   if (!box) return;
-  if (state.unit !== 'dong'){
-    box.innerHTML = '<div class="mapmsg">학원 목록은 <b>동 단위</b>에서만 볼 수 있습니다.' +
-                    '<br>왼쪽 단위를 「동」으로 바꿔주세요.</div>';
+  if (state.unit === 'gu'){
+    box.innerHTML = '<div class="mapmsg">학원 목록은 <b>동 · 학원가 단위</b>에서 볼 수 있습니다.' +
+                    '<br>왼쪽 단위를 바꿔주세요.</div>';
     return;
   }
-  getPlaces(placeFile(row)).then(data => {
+  rowPlaces(row).then(data => {
     const academies = data ? data.items.filter(p => p.t === 'a') : [];
     if (!academies.length){
       box.innerHTML = '<div class="mapmsg">이 동에는 목록에 올릴 영어학원이 없습니다.</div>';
@@ -1034,12 +1126,12 @@ function drawList(row){
 function drawMap(row, keepView){
   const box = document.getElementById('map');
   if (!box) return;
-  if (state.unit !== 'dong'){
-    box.innerHTML = '<div class="mapmsg">지도는 <b>동 단위</b>에서만 볼 수 있습니다.' +
-                    '<br>왼쪽 단위를 「동」으로 바꿔주세요.</div>';
+  if (state.unit === 'gu'){
+    box.innerHTML = '<div class="mapmsg">지도는 <b>동 · 학원가 단위</b>에서 볼 수 있습니다.' +
+                    '<br>왼쪽 단위를 바꿔주세요.</div>';
     return;
   }
-  const file = placeFile(row);
+  const file = row.hub ? 'hub:' + row.hub : placeFile(row);
   const paint = data => {
     if (!data || !data.items.length){
       box.innerHTML = '<div class="mapmsg">이 동에는 지도에 찍을 학원·학교가 없습니다.</div>';
@@ -1159,14 +1251,14 @@ function drawMap(row, keepView){
 
   if (PLACE_CACHE[file]) return paint(PLACE_CACHE[file]);
   box.innerHTML = '<div class="mapmsg">불러오는 중…</div>';
-  getPlaces(file).then(paint);
+  rowPlaces(row).then(paint);
 }
 
 function render(){
   fillSelect(selA, METRICS, state.a, '지표를 고르세요');
   renderCols();
 
-  segment(unit,   [{k:'dong', l:'동'}, {k:'gu', l:'구 · 시'}], () => state.unit, k => state.unit = k);
+  segment(unit,   [{k:'dong', l:'동'}, {k:'gu', l:'구 · 시'}, {k:'hub', l:'학원가'}], () => state.unit, k => state.unit = k);
   segment(region, [{k:'서울', l:'서울'}, {k:'경기', l:'경기'}, {k:'all', l:'서울+경기'}],
           () => state.region, k => state.region = k);
   segment(order,  [{k:'desc', l:'많은 순'}, {k:'asc', l:'적은 순'}],
@@ -1247,6 +1339,9 @@ function render(){
   if (state.hideZero)
     notes.push('순위 지표가 <b>0인 지역은 빼고</b> 셌습니다. 왼쪽에서 넣을 수 있습니다.');
   if (state.mkt && MARKET && state.unit === 'dong') notes.push(mktNote());
+  if (state.unit === 'hub')
+    notes.push('<b>학원가</b>는 속한 동의 숫자를 더한 값입니다(수강료·매매가는 동별 중간값의 가운데). ' +
+               '동 경계 밖 학원은 빠지니, 요약의 <b>중심 반경 ' + (HUBS ? HUBS.radius_km : 1.5) + 'km</b> 숫자를 같이 보세요.');
   if (state.unit === 'dong')
     notes.push('동은 <b>법정동</b>입니다. 주소에 동이 없는 학원 ' +
                fmt(DATA.counts.rows - DATA.counts.dong_parsed) + '건은 목록에서 뺐고, ' +
@@ -1394,6 +1489,7 @@ fetch('data/regions.json?v=' + V)
         HUBS = e;
         for (const r of DATA.dong){ const h = e.dongs[keyOf(r)]; r.hub_km = h ? h.km : null; }
         for (const r of DATA.gu){ const h = e.gus[r.sido + '/' + r.name]; r.hub_km = h ? h.km : null; }
+        buildHubRows();
         render();
       })
       .catch(() => {});
