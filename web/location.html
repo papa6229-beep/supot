@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 — supot</title>
-<link rel="stylesheet" href="styles.css?v=11">
+<link rel="stylesheet" href="styles.css?v=12">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -106,7 +106,7 @@ const METRICS = [
   {k:'pop_mid',       g:'인구', l:'중학생 나이 인구',        u:'명', sub:true, d:'만 12~14세 인구입니다.'},
 ];
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '11';
+const V = '12';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -234,13 +234,13 @@ function renderDetail(list){
       '<div class="stat"><span class="k">' + k + '</span>' +
       '<span class="v">' + v + '</span>' +
       '<span class="r">' + (extra || '') + '</span></div>';
-    let out = '<div><p class="grp-title">부동산 <small>최근 2년</small></p>';
+    let out = '<div><p class="grp-title">부동산 <small>최근 2년 · 매매만</small></p>';
     if (e.apt)
-      out += stat('아파트 ㎡당', won(e.apt.per_m2)) +
-             stat('아파트 중간 거래가', won(e.apt.price), '전용 ' + e.apt.area + '㎡') +
-             stat('거래 건수', e.apt.n.toLocaleString('ko-KR') + '건', e.apt.complexes + '개 단지');
+      out += stat('아파트 매매 ㎡당', won(e.apt.per_m2)) +
+             stat('아파트 중간 매매가', won(e.apt.price), '전용 ' + e.apt.area + '㎡') +
+             stat('매매 건수', e.apt.n.toLocaleString('ko-KR') + '건', e.apt.complexes + '개 단지');
     if (e.nrg){
-      out += stat('상가 ㎡당', won(e.nrg.per_m2), '1·2종 근생');
+      out += stat('상가 매매 ㎡당', won(e.nrg.per_m2), '1·2종 근생');
       const zones = Object.entries(e.nrg.zones).slice(0, 2).map(([k]) => k).join(' · ');
       if (zones) out += stat('용도지역', '<small>' + zones + '</small>', '');
     }
@@ -373,10 +373,9 @@ function cardFor(p, all){
   } else if (p.t === 'p' || p.t === 'g'){
     const shop = p.t === 'g';
     line.push([shop ? p.k : '아파트', p.y ? p.y + '년' : null, p.z].filter(Boolean).join(' · '));
-    line.push('<u>㎡당 ' + manwon(p.m2) + '</u>');
-    line.push('중간 거래가 ' + eok(p.p) + ' <small>' +
-              (shop ? '전용' : '전용') + ' ' + p.ar + '㎡</small>');
-    line.push('최근 2년 거래 ' + p.c + '건');
+    line.push('<u>매매 ㎡당 ' + manwon(p.m2) + '</u>');
+    line.push('중간 매매가 ' + eok(p.p) + ' <small>전용 ' + p.ar + '㎡</small>');
+    line.push('최근 2년 매매 ' + p.c + '건 <small>(전세·월세 아님)</small>');
     if (shop && p.k.includes('근린생활'))
       line.push('<u>학원이 들어갈 수 있는 용도입니다</u>');
   } else {
