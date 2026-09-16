@@ -203,26 +203,44 @@ select.add-col{
         text-align:center; color:var(--ink-3); line-height:1.8; font-size:14px}
 .maplegend{display:flex; align-items:center; gap:18px; flex-wrap:wrap;
            margin-top:12px; font-size:13.5px; color:var(--ink-2)}
-.maplegend .pin{display:inline-block; width:11px; height:11px; border-radius:50%;
-                margin-right:6px; vertical-align:-1px}
-.maplegend .pin.s{background:#2f6ea8}
+.maplegend .pin{display:inline-block; width:11px; height:11px;
+                margin-right:6px; vertical-align:-1px; border:1.5px solid #fff;
+                box-shadow:0 1px 2px rgba(0,0,0,.35)}
 .maplegend .pin.a{background:#d97a2b}
 .maplegend .ring{display:flex; align-items:center; gap:6px; cursor:pointer}
 .maplegend .hint{margin-left:auto; color:var(--ink-3); font-variant-numeric:tabular-nums}
 
-/* 지도 위 핀. 이름은 눌렀을 때만 펼친다 — 다 펼치면 서로 가린다. */
-.mk{position:relative; transform:translateY(6px); cursor:pointer; white-space:nowrap}
-.mk::after{content:''; position:absolute; left:50%; bottom:-6px; width:10px; height:10px;
-           margin-left:-5px; border-radius:50% 50% 50% 0; transform:rotate(-45deg);
-           box-shadow:0 1px 2px rgba(0,0,0,.3)}
-.mk.s::after{background:#2f6ea8}
-.mk.a::after{background:#d97a2b}
+/* 지도 위 핀.
+   카카오 지도 바탕에 동그란 POI 아이콘이 많아서, 우리 핀은 모양으로 구분한다.
+   초등학교=사각형, 중학교=마름모, 학원=물방울. 흰 테두리로 바탕과 떼어낸다. */
+.mk{position:relative; cursor:pointer; white-space:nowrap}
+.mk::after{
+  content:''; position:absolute; left:50%; bottom:0; box-sizing:border-box;
+  border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,.45);
+}
+.mk.a::after{                       /* 영어학원 — 물방울 */
+  width:13px; height:13px; margin-left:-6.5px; background:#e0761f;
+  border-radius:50% 50% 50% 0; transform:rotate(-45deg);
+}
+.mk.e::after{                       /* 초등학교 — 사각형 */
+  width:16px; height:16px; margin-left:-8px; background:#3f86c4; border-radius:3px;
+}
+.mk.m::after{                       /* 중학교 — 마름모 */
+  width:15px; height:15px; margin-left:-7.5px; background:#1f4f7a;
+  border-radius:3px; transform:rotate(45deg);
+}
 .mk b, .mk span{display:none}
 .mk.open{z-index:9}
 .mk.open b{display:block; background:#fff; border:1px solid var(--line-2); border-radius:7px;
-           padding:6px 10px 3px; font-size:13px; font-weight:600; box-shadow:0 2px 8px rgba(0,0,0,.14)}
+           padding:7px 11px 4px; font-size:13px; font-weight:600; box-shadow:0 3px 10px rgba(0,0,0,.18);
+           transform:translate(-50%,-10px)}
 .mk.open span{display:block; background:#fff; border:1px solid var(--line-2); border-top:0;
-              border-radius:0 0 7px 7px; padding:0 10px 6px; font-size:12px; color:var(--ink-3);
-              box-shadow:0 2px 8px rgba(0,0,0,.14)}
-.mk.open.s b{color:#2f6ea8}
+              border-radius:0 0 7px 7px; padding:0 11px 7px; font-size:12px; color:var(--ink-3);
+              box-shadow:0 3px 10px rgba(0,0,0,.18); transform:translate(-50%,-10px)}
+.mk.open.e b{color:#2b6698}
+.mk.open.m b{color:#1f4f7a}
 .mk.open.a b{color:#b8631f}
+
+.maplegend .pin.e{background:#3f86c4; border-radius:2px}
+.maplegend .pin.m{background:#1f4f7a; border-radius:2px; transform:rotate(45deg)}
+.maplegend .pin.a{background:#e0761f; border-radius:50%}

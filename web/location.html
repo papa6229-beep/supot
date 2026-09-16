@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 — supot</title>
-<link rel="stylesheet" href="styles.css?v=4">
+<link rel="stylesheet" href="styles.css?v=5">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -106,7 +106,7 @@ const METRICS = [
   {k:'pop_mid',       g:'인구', l:'중학생 나이 인구',        u:'명', sub:true, d:'만 12~14세 인구입니다.'},
 ];
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '4';
+const V = '5';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -245,7 +245,8 @@ function renderDetail(list){
   const body = state.tab === 'map'
     ? '<div class="maparea"><div id="map"></div>' +
       '<div class="maplegend">' +
-        '<span><i class="pin s"></i>초 · 중학교</span>' +
+        '<span><i class="pin e"></i>초등학교</span>' +
+        '<span><i class="pin m"></i>중학교</span>' +
         '<span><i class="pin a"></i>영어학원</span>' +
         '<label class="ring"><input type="checkbox" id="ringOn"' +
           (state.rings ? ' checked' : '') + '> 학교 반경 700m</label>' +
@@ -315,6 +316,10 @@ function drawMap(row){
         box.innerHTML = '';
         mapObj = new kakao.maps.Map(box, {center: new kakao.maps.LatLng(lat, lng), level: 5});
         mapObj.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
+        // 빈 곳을 누르면 열려 있던 말풍선을 닫는다.
+        kakao.maps.event.addListener(mapObj, 'click', () => {
+          for (const o of box.querySelectorAll('.mk.open')) o.classList.remove('open');
+        });
         box.dataset.built = '1';
       }
       clearOverlays();
@@ -325,15 +330,17 @@ function drawMap(row){
         bounds.extend(pos);
         const school = p.t === 's';
         if (school && state.rings){
+          const tint = p.k === '중학교' ? '#1f4f7a' : '#3f86c4';
           const ring = new kakao.maps.Circle({
-            center: pos, radius: 700, strokeWeight: 1, strokeColor: '#2f6ea8',
-            strokeOpacity: .5, strokeStyle: 'shortdash',
-            fillColor: '#2f6ea8', fillOpacity: .06,
+            center: pos, radius: 700, strokeWeight: 1, strokeColor: tint,
+            strokeOpacity: .45, strokeStyle: 'shortdash',
+            fillColor: tint, fillOpacity: .05,
           });
           ring.setMap(mapObj); overlays.push(ring);
         }
         const el = document.createElement('div');
-        el.className = 'mk ' + (school ? 's' : 'a');
+        const shape = !school ? 'a' : (p.k === '중학교' ? 'm' : 'e');
+        el.className = 'mk ' + shape;
         el.innerHTML = '<b>' + p.n + '</b><span>' +
                        p.k + (p.y ? ' · ' + p.y + '년' : '') + '</span>';
         const mk = new kakao.maps.CustomOverlay({
