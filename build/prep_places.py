@@ -73,8 +73,10 @@ def main() -> None:
     sch["과정"] = ""
     sch["수강료"] = None
 
+    for c in ("재학생", "대상학생", "전입", "전출"):
+        eng[c] = pd.NA
     cols = ["시도", "구시", "동", "종류", "세부", "표시명", "연도", "도로명주소",
-            "과정", "수강료", "설립", "공학"]
+            "과정", "수강료", "설립", "공학", "재학생", "대상학생", "전입", "전출"]
     places = pd.concat([eng[cols], sch[cols]], ignore_index=True)
     places = places[places["동"] != UNKNOWN_DONG]
 
@@ -136,6 +138,9 @@ def main() -> None:
             if r.종류 == "학교":
                 if r.설립: it["e"] = r.설립          # 공립 / 사립
                 if r.공학: it["g"] = r.공학          # 남녀공학 / 남 / 여
+                if pd.notna(r.재학생):                # 학교알리미 2026 공시
+                    it["st"] = int(r.재학생); it["tg"] = int(r.대상학생)
+                    it["mi"] = int(r.전입); it["mo"] = int(r.전출)
             else:
                 if r.과정: it["c"] = r.과정          # 교습과정
                 if pd.notna(r.수강료) and r.수강료: it["f"] = int(r.수강료)

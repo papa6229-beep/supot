@@ -20,6 +20,8 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
 ACA_SRC = ROOT / "data/raw/aca_2026-08.csv"
+# 학교알리미 2026 공시: 학년별 재학생, 전입·전출 (build/fetch_schoolinfo.py)
+SCHOOLINFO_SRC = ROOT / "data/raw/schoolinfo_2026.json"
 # 3년 전 같은 날 스냅샷. 새로 생긴 곳·사라진 곳을 가르는 기준이다.
 # 나이스 파일 목록에서 2023년 8월 31일 기준은 fileSeq=43 이다.
 ACA_OLD_SRC = ROOT / "data/raw/aca_2023-08.csv"
@@ -376,6 +378,32 @@ def load_schools(known: dict[tuple[str, str], set[str]]) -> pd.DataFrame:
     df = df.dropna(subset=["구시"])
     df["동"] = [known.fix(s, g, pick_dong(d, known.get((s, g), set())))
                 for d, s, g in zip(df["도로명상세주소"], df["시도"], df["구시"])]
+    return attach_school_stats(df)
+
+
+def attach_school_stats(df: pd.DataFrame) -> pd.DataFrame:
+    """학교알리미 공시를 (구시, 학교명)으로 붙인다. 99% 맞는다(못 맞춘 곳은 이전·개교 예정).
+
+    대상학생: 초등학교는 4~6학년, 중학교는 1~3학년 재학생. 인구 지표(초4~중3)와 같은 학년으로 맞춘다.
+    전입·전출: 그 학년도에 다른 학교에서 옮겨 온 / 옮겨 간 학생 수.
+    """
+    for c in ("재학생", "대상학생", "전입", "전출"):
+        df[c] = pd.NA
+    if not SCHOOLINFO_SRC.exists():
+        return df
+    rows = json.loads(SCHOOLINFO_SRC.read_text(encoding="utf-8"))["list"]
+    norm = lambda n: re.sub(r"\s", "", n)
+    stats = {}
+    for x in rows:
+        adr = (x.get("ADRCD_NM") or "").split()
+        gusi = adr[1] if len(adr) > 1 else ""
+        elem = any(k.startswith("STDNT_SUM_2") for k in x)
+        target = (x.get("STDNT_SUM_24", 0) + x.get("STDNT_SUM_25", 0) + x.get("STDNT_SUM_26", 0)) if elem else \
+                 (x.get("STDNT_SUM_31", 0) + x.get("STDNT_SUM_32", 0) + x.get("STDNT_SUM_33", 0))
+        stats[(gusi, norm(x["SCHUL_NM"]))] = (x.get("STDNT_SUM"), target, x.get("MVIN_SUM"), x.get("MVT_SUM"))
+    got = [stats.get((g, norm(n))) for g, n in zip(df["구시"], df["학교명"])]
+    for i, c in enumerate(("재학생", "대상학생", "전입", "전출")):
+        df[c] = [v[i] if v else pd.NA for v in got]
     return df
 
 
@@ -397,6 +425,10 @@ def summarize(aca: pd.DataFrame, sch: pd.DataFrame, cutoff: int) -> dict:
         "sch_elem": int((sch["학교종류명"] == "초등학교").sum()) if len(sch) else 0,
         "sch_mid": int((sch["학교종류명"] == "중학교").sum()) if len(sch) else 0,
         "sch_total": len(sch),
+        # 학교알리미 공시가 붙은 학교만 더한다. 하나도 없으면 비워 둔다.
+        "stu_target": int(pd.to_numeric(sch["대상학생"], errors="coerce").sum()) if len(sch) and sch["대상학생"].notna().any() else None,
+        "mv_net": int(pd.to_numeric(sch["전입"], errors="coerce").sum() - pd.to_numeric(sch["전출"], errors="coerce").sum())
+                  if len(sch) and sch["전입"].notna().any() else None,
     }
 
 

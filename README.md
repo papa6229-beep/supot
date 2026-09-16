@@ -57,6 +57,7 @@
 python build/fetch_neis.py                       # 학원·학교 스냅샷
 python build/fetch_neis.py 43                    # 3년 전(2023-08) 학원 스냅샷 -> aca_2023-08.csv 로 이름 바꿔 둔다
 python build/fetch_population.py                 # 법정동별 연령 인구 (56회 호출)
+python build/fetch_schoolinfo.py                 # 학교알리미: 학년별 재학생·전입·전출 (키 필요)
 python build/prep_dongmap.py <연계정보.csv>       # 82MB 원본 -> 126KB 추출
 python build/prep.py                             # -> web/data/regions.json
 python build/prep_places.py                      # -> web/data/places/ (동별 지도·학원 목록)
@@ -129,6 +130,10 @@ python -m http.server 5178 --directory web
   fileSeq는 날짜 순이 아니다. 목록은 `POST /portal/data/file/searchFileData.do`.
 - 사라진 곳에는 폐원 말고도 번호가 바뀐 재등록이 섞일 수 있다. 같은 구에 같은 이름이 있으면 뺐다.
 - **개인과외교습자(공부방)는 전국 데이터가 없다.** 잡히는 건 학원·교습소까지
+- **학교 재학생·전입·전출은 학교알리미 오픈API(apiType=10)**에서 받는다. 공공데이터포털 키가 아니라
+  학교알리미에서 따로 받은 키(`data/secrets/schoolinfo_key.txt`)를 쓰고, 2026년 이후 키는
+  `sidoCode`(2자리)·`sggCode`(5자리)가 필수다. 일반구가 있는 시는 구 코드로 부른다(부천은 옛 구 코드).
+  (구시, 학교명)으로 99% 맞는다. 특목·자사고 진학률은 이 API에 없다.
 - 영어학원의 4.7%는 주소에 동 정보가 없거나 인구 통계와 이름이 어긋나
   동 단위 인구가 붙지 않는다 (구·시 단위는 전부 붙는다)
 - **일반구가 있는 8개 시는 부동산 자료가 비어 있다.** 실거래 API의 `LAWD_CD`는

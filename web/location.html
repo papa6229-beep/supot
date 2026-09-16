@@ -6,14 +6,14 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 분석 — Chalkmap</title>
-<link rel="stylesheet" href="styles.css?v=41">
+<link rel="stylesheet" href="styles.css?v=42">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 <script>
 // 브라우저가 옛 화면을 붙잡고 있으면 새 버전으로 한 번 다시 불러온다.
 // 올릴 때마다 이 숫자와 version.json 을 같이 올린다.
 (function(){
-  var PAGE_V = '41';
+  var PAGE_V = '42';
   fetch('version.json?t=' + Date.now(), {cache: 'no-store'})
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(d){
@@ -134,6 +134,12 @@ const METRICS = [
   {k:'sch_elem',      g:'학교', l:'초등학교 수',            u:'곳', sub:1, d:'초등학교 수입니다.'},
   {k:'sch_mid',       g:'학교', l:'중학교 수',              u:'곳', sub:1,
    d:'중학교 수입니다. 내신 대비 수요가 여기서 나옵니다.'},
+  {k:'stu_target',    g:'학교', l:'학교 재학생 (초4~중3)', u:'명',
+   d:'그 지역 학교에 <b>다니는</b> 초등학교 4~6학년과 중학교 1~3학년 수입니다(학교알리미 2026 공시). ' +
+     '사는 아이 수(인구)와 달리 다른 동에서 통학하는 아이도 들어갑니다.'},
+  {k:'mv_net',        g:'학교', l:'학교 전입 − 전출', u:'명', keepZero:true,
+   d:'그 지역 초·중학교로 <b>옮겨 온 학생에서 옮겨 간 학생을 뺀 수</b>입니다(학교알리미 2026 공시). ' +
+     '크면 이사 와서 보내는 집이 많다는 뜻입니다. 새로 연 학교나 새 아파트 입주가 있으면 크게 나옵니다.'},
   {k:'pop_target',    g:'인구', l:'초4~중3 인구',           u:'명',
    d:'그 지역에 <b>사는</b> 만 9~14세 인구입니다. <b>이번 사업의 대상</b>입니다.'},
   {k:'pop_elem',      g:'인구', l:'초등학생 나이 인구',      u:'명', sub:1, d:'만 6~11세 인구입니다.'},
@@ -156,7 +162,7 @@ const kindLabel = k => (ACA_KIND[k] && ACA_KIND[k].label) || k;
 
 const indent = m => m.sub ? '  '.repeat(m.sub) + '└ ' : '';
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '41';
+const V = '42';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -844,6 +850,11 @@ function cardFor(p, all){
   if (p.t === 's'){
     line.push([p.k, p.e, p.g && p.g !== '남여공학' ? p.g + '학교' : null]
               .filter(Boolean).join(' · '));
+    if (p.st != null){
+      const grade = p.k === '중학교' ? '' : ' · 4~6학년 ' + fmt(p.tg) + '명';
+      line.push('재학생 <b>' + fmt(p.st) + '명</b>' + grade);
+      line.push('전입 <b>' + fmt(p.mi) + '</b> · 전출 <b>' + fmt(p.mo) + '</b> <small>학교알리미 2026</small>');
+    }
     const near = all.filter(x => x.t === 'a' && metersBetween(p, x) <= SCHOOL_RADIUS);
     if (near.length){
       const by = k => near.filter(x => x.k === k).length;
