@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 분석 — Chalkmap</title>
-<link rel="stylesheet" href="styles.css?v=31">
+<link rel="stylesheet" href="styles.css?v=32">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -16,6 +16,7 @@
   <aside class="side">
     <a class="home-link" href="index.html">← 메뉴</a>
     <h1>입지 · 상권 분석</h1>
+    <button type="button" class="reset" id="reset" hidden>조건 모두 지우기</button>
     <p class="where" id="basis"></p>
 
     <div class="field normal-only">
@@ -130,13 +131,13 @@ const kindLabel = k => (ACA_KIND[k] && ACA_KIND[k].label) || k;
 
 const indent = m => m.sub ? '  '.repeat(m.sub) + '└ ' : '';
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '31';
+const V = '32';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
 const UNKNOWN_DONG = '(동 미상)';
 
-const state = {a:'eng_total', cols:['pop_target', 'sch_total'], unit:'dong', region:'서울',
+const state = {a:'', cols:[], unit:'dong', region:'서울',
                desc:true, q:'', page:0, hideZero:true, gap:false, listKind:'all', listSort:'old', focus:null, mkt:'', picked:null, tab:'summary', rings:true,
                show:{'초등학교':true, '중학교':true,
                      '영어 전문':true, '영어+타 과목':true, '교습소':true,
@@ -196,6 +197,12 @@ function renderCols(){
   if (state.cols.length < MAX_COLS){
     const add = document.createElement('select');
     add.className = 'add-col';
+    if (!state.a){
+      add.disabled = true;
+      add.innerHTML = '<option>순위 지표를 먼저 고르세요</option>';
+      cols.appendChild(add);
+      return;
+    }
     const used = new Set([state.a, ...state.cols]);
     fillSelect(add, METRICS.filter(m => !used.has(m.k)), '', '+ 지표 추가');
     add.onchange = e => {
@@ -509,7 +516,8 @@ const PREV = {};
 const CALM = matchMedia('(prefers-reduced-motion: reduce)');
 
 function animNum(to, slot, fmtKind){
-  const from = PREV[slot] ? PREV[slot].v : 0;
+  // 처음 그리는 칸은 이전 값이 없다. 0에서 출발한다.
+  const from = (PREV[slot] && Number.isFinite(PREV[slot].v)) ? PREV[slot].v : 0;
   PREV[slot] = Object.assign(PREV[slot] || {}, {v: to});
   return '<span class="anum" data-from="' + from + '" data-to="' + to + '"' +
          (fmtKind ? ' data-f="' + fmtKind + '"' : '') + '>' + fmtAnim(from, fmtKind) + '</span>';
@@ -1069,8 +1077,7 @@ function drawMap(row, keepView){
 }
 
 function render(){
-  const mA = metric(state.a);
-  fillSelect(selA, METRICS, state.a);
+  fillSelect(selA, METRICS, state.a, '지표를 고르세요');
   renderCols();
 
   segment(unit,   [{k:'dong', l:'동'}, {k:'gu', l:'구 · 시'}], () => state.unit, k => state.unit = k);
@@ -1086,7 +1093,14 @@ function render(){
   segment(zero,   [{k:'hide', l:'빼기'}, {k:'show', l:'넣기'}],
           () => state.hideZero ? 'hide' : 'show', k => state.hideZero = (k === 'hide'));
 
-  if (state.gap){ renderFew(); return; }
+  const touched = state.a || state.gap || state.mkt || state.q || state.region !== '서울' ||
+                  state.unit !== 'dong' || !state.desc || !state.hideZero;
+  document.getElementById('reset').hidden = !touched;
+
+  if (state.gap){ document.body.classList.remove('blank-mode'); renderFew(); return; }
+  if (!state.a){ renderBlank(); return; }
+  document.body.classList.remove('blank-mode');
+  const mA = metric(state.a);
 
   const shown = state.cols.map(metric);
   const columns = [mA, ...shown];
@@ -1153,6 +1167,26 @@ function render(){
                '인구가 붙지 않은 동도 일부 있습니다(영어학원 기준 4.7%).');
   notes.push('영어 여부는 학원명·교습과정·수강료 내역으로 판별했습니다. 완전하지 않습니다.');
   note.innerHTML = notes.join('<br>');
+}
+
+/** 아무 지표도 고르지 않은 첫 화면. 그래프 없이 무엇을 고르면 되는지만 안내한다. */
+function renderBlank(){
+  document.body.classList.add('blank-mode');
+  title.textContent = '무엇을 볼지 골라주세요';
+  explain.innerHTML = '왼쪽 <b>「무엇으로 순위를 매길까요」</b>에서 지표를 고르면 지역별 그래프가 나옵니다. ' +
+                      '옆에 함께 볼 지표는 <b>「나란히 비교할 것」</b>에서 더할 수 있습니다.';
+  count.innerHTML = ''; sum.innerHTML = '';
+  const quick = ['eng_total', 'pop_target', 'sch_total', 'eng_new3y'].map(metric);
+  rows.innerHTML = '<div class="blank">' +
+    '<p>자주 보는 지표로 바로 시작하기</p>' +
+    '<div class="quick">' + quick.map(m =>
+      '<button type="button" data-k="' + m.k + '">' + m.l + '</button>').join('') + '</div>' +
+    '</div>';
+  for (const b of rows.querySelectorAll('.quick button'))
+    b.onclick = () => { state.a = b.dataset.k; state.page = 0; render(); };
+  pager.innerHTML = '';
+  detail.innerHTML = '';
+  note.innerHTML = '';
 }
 
 /** '학원 적은 순' 단독 화면. 다른 지표는 내리고 이 기준 하나만 나열한다. */
@@ -1226,12 +1260,19 @@ function renderFew(){
 
 selA.onchange = e => {
   state.a = e.target.value;
-  state.cols = state.cols.filter(k => k !== state.a);
+  state.cols = state.a ? state.cols.filter(k => k !== state.a) : [];
   state.page = 0;
   render();
 };
 q.oninput = e => { state.q = e.target.value; state.page = 0; render(); };
 q.value = '';
+document.getElementById('reset').onclick = () => {
+  Object.assign(state, {a: '', cols: [], unit: 'dong', region: '서울', desc: true, q: '', page: 0,
+                        hideZero: true, gap: false, mkt: '', picked: null, tab: 'summary'});
+  q.value = '';
+  render();
+  window.scrollTo(0, 0);
+};
 window.addEventListener('pageshow', e => { if (e.persisted) location.reload(); });
 
 fetch('data/regions.json?v=' + V)
