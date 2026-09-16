@@ -20,6 +20,10 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
 ACA_SRC = ROOT / "data/raw/aca_2026-08.csv"
+# 3년 전 같은 날 스냅샷. 새로 생긴 곳·사라진 곳을 가르는 기준이다.
+# 나이스 파일 목록에서 2023년 8월 31일 기준은 fileSeq=43 이다.
+ACA_OLD_SRC = ROOT / "data/raw/aca_2023-08.csv"
+OLD_YM = "2023-08"
 SCH_SRC = ROOT / "data/raw/school_2026-08.csv"
 POP_SRC = ROOT / "data/raw/pop_2026-08.csv"
 DONGMAP_SRC = ROOT / "data/raw/dongmap.csv"
@@ -191,8 +195,11 @@ def fee_values(text: str) -> list[int]:
 
 
 # --- 로딩 --------------------------------------------------------------------
-def load_academies(known: dict[tuple[str, str], set[str]]) -> pd.DataFrame:
-    df = pd.read_csv(ACA_SRC, encoding="cp949", dtype=str, low_memory=False).fillna("")
+def load_academies(known: dict[tuple[str, str], set[str]], src: Path = None) -> pd.DataFrame:
+    """학원 스냅샷을 읽는다. src 를 주면 과거 스냅샷을 읽는다(폐원 비교용)."""
+    df = pd.read_csv(src or ACA_SRC, encoding="cp949", dtype=str, low_memory=False).fillna("")
+    # 2023년 이전 스냅샷은 칸 이름이 조금 다르다.
+    df = df.rename(columns={"인당수강료내용": "인당수강료", "수정일": "수정일자"})
     df = df[df["시도교육청명"].isin(SIDO)].copy()
     df["시도"] = df["시도교육청명"].map(SIDO)
     # 행정구역명이 비어 있는 곳이 48건 있어 도로명주소에서 보충한다.
@@ -203,7 +210,61 @@ def load_academies(known: dict[tuple[str, str], set[str]]) -> pd.DataFrame:
     df["영어"] = mark_english(df)
     df["복합"] = mark_combined(df)
     df["개설연도"] = pd.to_numeric(df["개설일자"].str.slice(0, 4), errors="coerce")
-    return df.dropna(subset=["구시"])
+    df = df.dropna(subset=["구시"])
+    if src is None and ACA_OLD_SRC.exists():
+        df = compare_with_old(df, load_academies(known, ACA_OLD_SRC))
+    return df
+
+
+def _same_place_names(df: pd.DataFrame) -> set:
+    return set(zip(df["시도"], df["구시"], df["학원명"].str.replace(r"\s", "", regex=True)))
+
+
+def compare_with_old(cur: pd.DataFrame, old: pd.DataFrame) -> pd.DataFrame:
+    """3년 전 스냅샷과 학원지정번호로 맞춘다.
+
+    학원이 이전하거나 변경 등록을 하면 개설일자가 새 날짜로 바뀐다
+    (2023년 목록에 2022년 개원으로 있던 곳이 지금은 2025년 개원으로 적힌 식).
+    지정번호는 그대로라서 번호로 맞추면 된다. 단, 번호는 교육청마다 따로 매겨
+    서울과 경기에 같은 번호가 있다. 반드시 (시도, 번호)로 맞춘다.
+      - 문 연 해: 두 목록 중 더 이른 개설일
+      - 새로 생긴 곳: 3년 전 목록에 번호가 없던 곳
+    같은 구에 같은 이름이 3년 전에도 있었으면 번호만 바뀐 재등록으로 보고 새로 치지 않는다.
+    사라진 곳은 old_closed() 가 따로 센다.
+    """
+    first = old.groupby(["시도", "학원지정번호"])["개설일자"].min().to_dict()
+    prev = pd.Series([first.get(k, "") for k in zip(cur["시도"], cur["학원지정번호"])], index=cur.index)
+    earlier = (prev != "") & (prev < cur["개설일자"])
+    cur["개설일자"] = cur["개설일자"].where(~earlier, prev)
+    cur["개설연도"] = pd.to_numeric(cur["개설일자"].str.slice(0, 4), errors="coerce")
+
+    old_names = _same_place_names(old)
+    renamed = [(a, b, c.replace(" ", "")) in old_names
+               for a, b, c in zip(cur["시도"], cur["구시"], cur["학원명"])]
+    old_ids = set(zip(old["시도"], old["학원지정번호"]))
+    seen = pd.Series([k in old_ids for k in zip(cur["시도"], cur["학원지정번호"])], index=cur.index)
+    cur["신규"] = ~seen & ~pd.Series(renamed, index=cur.index)
+    return cur
+
+
+def old_closed(known) -> pd.DataFrame:
+    """3년 전에 있던 영어 학원·교습소 중 지금 목록에 없는 곳. 3년 전 주소 기준."""
+    if not ACA_OLD_SRC.exists():
+        return pd.DataFrame(columns=["시도", "구시", "동"])
+    old = load_academies(known, ACA_OLD_SRC)
+    cur = pd.read_csv(ACA_SRC, encoding="cp949", dtype=str, low_memory=False,
+                      usecols=["시도교육청명", "행정구역명", "학원지정번호", "학원명", "도로명주소"]).fillna("")
+    cur = cur[cur["시도교육청명"].isin(SIDO)].copy()
+    cur["시도"] = cur["시도교육청명"].map(SIDO)
+    gusi = cur["행정구역명"].str.strip()
+    cur["구시"] = gusi.where(gusi != "", cur["도로명주소"].map(parse_gusi))
+    cur_ids = set(zip(cur["시도"], cur["학원지정번호"]))
+    still = pd.Series([k in cur_ids for k in zip(old["시도"], old["학원지정번호"])], index=old.index)
+    gone = old[old["영어"] & ~still]
+    cur_names = _same_place_names(cur.dropna(subset=["구시"]))
+    moved = [(a, b, c.replace(" ", "")) in cur_names
+             for a, b, c in zip(gone["시도"], gone["구시"], gone["학원명"])]
+    return gone[[not m for m in moved]]
 
 
 def load_population() -> pd.DataFrame:
@@ -328,7 +389,9 @@ def summarize(aca: pd.DataFrame, sch: pd.DataFrame, cutoff: int) -> dict:
         "eng_institute": int((eng["학원교습소명"] == "교습소").sum()) if len(eng) else 0,
         "eng_solo": int(((eng["학원교습소명"] == "학원") & ~eng["복합"]).sum()) if len(eng) else 0,
         "eng_combo": int(eng["복합"].sum()) if len(eng) else 0,
-        "eng_new3y": int((eng["개설연도"] >= cutoff).sum()) if len(eng) else 0,
+        # 3년 전 목록이 있으면 번호 비교로, 없으면 개설연도로 센다.
+        "eng_new3y": (int(eng["신규"].sum()) if "신규" in eng else int((eng["개설연도"] >= cutoff).sum()))
+                     if len(eng) else 0,
         "all_total": len(aca),
         "fee_median": int(pd.Series(fees).median()) if fees else None,
         "sch_elem": int((sch["학교종류명"] == "초등학교").sum()) if len(sch) else 0,
@@ -391,6 +454,16 @@ def main() -> None:
 
     gu = build(aca, sch, ["시도", "구시"], cutoff)
     dong = build(aca, sch, ["시도", "구시", "동"], cutoff)
+
+    closed = old_closed(known)
+    by_gu = closed.groupby(["시도", "구시"]).size().to_dict()
+    by_dong = closed.groupby(["시도", "구시", "동"]).size().to_dict()
+    for r in gu:
+        r["eng_closed3y"] = int(by_gu.get((r["sido"], r["name"]), 0))
+    for r in dong:
+        r["eng_closed3y"] = int(by_dong.get((r["sido"], r["parent"], r["name"]), 0))
+    print(f"  3년 비교({OLD_YM} -> {BASE_YM}): 새로 생긴 영어 {int(aca.loc[aca['영어'], '신규'].sum()) if '신규' in aca else '-'}곳"
+          f" / 사라진 영어 {len(closed)}곳")
 
     bands = list(AGE_BANDS)
     gu_pop = {(r.시도, r.구시): {b: getattr(r, b) for b in bands}

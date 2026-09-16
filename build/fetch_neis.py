@@ -23,6 +23,9 @@ DATASETS = {
 }
 DEFAULT_FILE_SEQ = 103          # 2026년 8월 31일 기준
 BASE_YM = "2026-08"
+# fileSeq 는 날짜 순서가 아니다(2021년은 거꾸로, 2023년은 뒤섞여 있다).
+# 파일 목록은 POST /portal/data/file/searchFileData.do (infId, infSeq=3) 로 받는다.
+#   2023년 8월 31일 기준 = 43  ->  data/raw/aca_2023-08.csv (폐원 비교용)
 
 
 def fetch(name: str, inf_id: str, file_seq: int, out: Path) -> None:
