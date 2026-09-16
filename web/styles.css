@@ -17,7 +17,7 @@ button,select,input{font:inherit}
 .home{min-height:100vh; display:flex; flex-direction:column; justify-content:center;
       max-width:1120px; margin:0 auto; padding-block:30px; padding-inline:22px}
 .brand{text-align:center; margin-bottom:54px}
-.brand h1{margin:0; font-size:46px; letter-spacing:.34em; text-indent:.34em; font-weight:600; color:var(--accent)}
+.brand h1{margin:0; font-size:52px; letter-spacing:-.01em; font-weight:800; color:var(--accent)}
 .brand p{margin:14px 0 0; color:var(--ink-2); font-size:16px}
 .menu{display:grid; grid-template-columns:repeat(4,1fr); gap:16px}
 .tile{
@@ -26,13 +26,22 @@ button,select,input{font:inherit}
   text-decoration:none; color:inherit; transition:border-color .15s, transform .15s;
 }
 .tile .no{font-size:12px; color:var(--ink-4); letter-spacing:.1em}
-.tile .t{margin-top:auto; font-size:21px; font-weight:600}
-.tile .d{margin-top:7px; color:var(--ink-2); font-size:14px; line-height:1.5}
+/* 설명이 한 줄이든 두 줄이든 제목 높이가 카드끼리 맞도록 설명 칸을 두 줄로 잡는다 */
+.tile .t{margin-top:auto; font-size:21px; font-weight:700; word-break:keep-all}
+.tile .d{margin-top:8px; color:var(--ink-2); font-size:14.5px; line-height:1.5; min-height:3em;
+         word-break:keep-all; text-wrap:balance}
+.tile .d > span{display:block}
 .tile.live:hover{border-color:var(--accent); transform:translateY(-2px)}
 .tile.live .t{color:var(--accent)}
 .tile.empty{border-style:dashed; background:transparent}
 .tile.empty .t{color:var(--ink-4); font-weight:500}
-.foot{margin-top:40px; text-align:center; color:var(--ink-3); font-size:13px}
+.foot{margin-top:44px; text-align:center; color:var(--ink-3); font-size:13px; line-height:1.7;
+      word-break:keep-all; text-wrap:balance}
+.foot p{margin:0}
+.foot p:first-child{color:var(--ink-2); font-weight:600; margin-bottom:2px}
+/* 출처는 '항목 기관' 한 덩어리씩만 줄을 바꾼다 */
+.foot .src span{white-space:nowrap}
+.foot .src span:not(:last-child)::after{content:' ·'; margin-right:6px; color:var(--ink-4)}
 
 /* ---------- 두 칸 골격 ---------- */
 .app{display:grid; grid-template-columns:var(--side) 1fr; min-height:100vh}
@@ -195,7 +204,7 @@ select.add-col{
   .side{position:static; height:auto; border-right:0; border-bottom:1px solid var(--line)}
   .main{padding:20px 18px 36px}
   .menu{grid-template-columns:repeat(2,1fr)}
-  .brand h1{font-size:34px}
+  .brand h1{font-size:40px}
   .head,.row{grid-template-columns:110px repeat(var(--cols,1),1fr); column-gap:12px}
   .nm{font-size:14.5px}
   .val{font-size:15px}
@@ -473,4 +482,17 @@ body.few-mode .meta .legend{display:none}
   .prow{grid-template-columns:1fr auto; gap:4px 10px}
   .prow .pbar{grid-column:1 / -1; order:3}
   .prow .pw{grid-column:1 / -1; order:4}
+}
+
+/* 폰: 메뉴 카드는 한 줄에 하나. 비어 있는 카드는 낮게 */
+@media (max-width:600px){
+  .home{justify-content:flex-start; padding-block:48px 30px}
+  .brand{margin-bottom:36px}
+  .menu{grid-template-columns:1fr; gap:10px}
+  .tile{min-height:0; padding:20px 20px}
+  .tile .t{margin-top:10px}
+  .tile .d{min-height:0}
+  .tile.empty{flex-direction:row; align-items:baseline; gap:14px; padding:14px 20px}
+  .tile.empty .t{margin-top:0; font-size:16px}
+  .tile.empty .d{display:none}
 }

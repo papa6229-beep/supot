@@ -5,8 +5,8 @@
 <!-- 새로 올린 게 바로 보이도록 페이지는 매번 확인하게 한다. -->
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>입지 · 상권 — supot</title>
-<link rel="stylesheet" href="styles.css?v=28">
+<title>입지 · 상권 분석 — Chalkmap</title>
+<link rel="stylesheet" href="styles.css?v=29">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -15,7 +15,7 @@
 
   <aside class="side">
     <a class="home-link" href="index.html">← 메뉴</a>
-    <h1>입지 · 상권</h1>
+    <h1>입지 · 상권 분석</h1>
     <p class="where" id="basis"></p>
 
     <div class="field gapf">
@@ -130,7 +130,7 @@ const kindLabel = k => (ACA_KIND[k] && ACA_KIND[k].label) || k;
 
 const indent = m => m.sub ? '  '.repeat(m.sub) + '└ ' : '';
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '28';
+const V = '29';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
