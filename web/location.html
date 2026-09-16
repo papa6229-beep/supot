@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 분석 — Chalkmap</title>
-<link rel="stylesheet" href="styles.css?v=30">
+<link rel="stylesheet" href="styles.css?v=31">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -130,13 +130,13 @@ const kindLabel = k => (ACA_KIND[k] && ACA_KIND[k].label) || k;
 
 const indent = m => m.sub ? '  '.repeat(m.sub) + '└ ' : '';
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '30';
+const V = '31';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
 const UNKNOWN_DONG = '(동 미상)';
 
-const state = {a:'eng_total', cols:['pop_target', 'sch_total'], unit:'dong', region:'all',
+const state = {a:'eng_total', cols:['pop_target', 'sch_total'], unit:'dong', region:'서울',
                desc:true, q:'', page:0, hideZero:true, gap:false, listKind:'all', listSort:'old', focus:null, mkt:'', picked:null, tab:'summary', rings:true,
                show:{'초등학교':true, '중학교':true,
                      '영어 전문':true, '영어+타 과목':true, '교습소':true,
@@ -502,16 +502,78 @@ function rowsFor(){
   return list;
 }
 
-function cell(value, max, med, color, lead){
+// ---------- 그래프 움직임 ----------
+// 같은 자리(몇 번째 줄 · 몇 번째 열)에 있던 값에서 새 값으로 막대가 움직이고 숫자가 굴러간다.
+// 줄의 지역이 바뀌어도 자리 기준이라, 조건을 바꾸면 목록 전체가 한 번에 흘러간다.
+const PREV = {};
+const CALM = matchMedia('(prefers-reduced-motion: reduce)');
+
+function animNum(to, slot, fmtKind){
+  const from = PREV[slot] ? PREV[slot].v : 0;
+  PREV[slot] = Object.assign(PREV[slot] || {}, {v: to});
+  return '<span class="anum" data-from="' + from + '" data-to="' + to + '"' +
+         (fmtKind ? ' data-f="' + fmtKind + '"' : '') + '>' + fmtAnim(from, fmtKind) + '</span>';
+}
+
+function fmtAnim(v, kind){
+  return kind === 'pct' ? Math.round(v) + '%' : fmt(Math.round(v));
+}
+
+function cell(value, max, med, color, slot){
   // 막대 오른쪽에 값 라벨이 들어갈 자리를 남겨둔다
   const pct = v => Math.max(0.8, ((v || 0) / max) * 84);
-  const line = med === null ? '' : '<span class="med" style="left:' + pct(med) + '%"></span>';
+  const r2 = x => Math.round(x * 100) / 100;
+  const w = r2(pct(value)), m = med === null ? null : r2(pct(med));
+  const was = PREV[slot] || {w: 0.8, m};
+  PREV[slot] = {w, m, v: was.v};
+  const line = m === null ? '' :
+    '<span class="med" style="left:' + (was.m ?? m) + '%" data-m="' + m + '"></span>';
+  const num = (value === null || value === undefined) ? '—' : animNum(value, slot);
   return '<div class="cell">' +
-           '<div class="track"><span class="fill" style="width:' + pct(value) +
-           '%;background:' + color + '"></span>' + line + '</div>' +
-           '<span class="val">' + fmt(value) + '</span>' +
+           '<div class="track"><span class="fill" style="width:' + was.w + '%;background:' + color +
+           '" data-w="' + w + '"></span>' + line + '</div>' +
+           '<span class="val">' + num + '</span>' +
          '</div>';
 }
+
+// 새로 그린 표에서 막대와 숫자를 목표값까지 움직인다.
+let animTimer = 0;
+function animateChart(root){
+  const bars = root.querySelectorAll('[data-w]');
+  const meds = root.querySelectorAll('[data-m]');
+  const nums = root.querySelectorAll('.anum');
+  const settle = () => {
+    for (const el of bars) el.style.width = el.dataset.w + '%';
+    for (const el of meds) el.style.left = el.dataset.m + '%';
+  };
+  cancelAnimationFrame(animTimer);
+  if (CALM.matches){
+    root.classList.add('still');
+    settle();
+    for (const el of nums) el.textContent = fmtAnim(+el.dataset.to, el.dataset.f);
+    return;
+  }
+  void root.offsetWidth;          // 이전 폭을 먼저 그려야 움직임이 보인다
+  settle();
+  const t0 = performance.now(), dur = 650;
+  const draw = k => {
+    const e = 1 - Math.pow(1 - k, 3);
+    for (const el of nums){
+      const a = +el.dataset.from, b = +el.dataset.to;
+      el.textContent = fmtAnim(a + (b - a) * e, el.dataset.f);
+    }
+  };
+  const tick = now => {
+    const k = Math.min(1, (now - t0) / dur);
+    draw(k);
+    if (k < 1) animTimer = requestAnimationFrame(tick);
+  };
+  animTimer = requestAnimationFrame(tick);
+  // 탭이 뒤에 있으면 프레임이 멈춘다. 그래도 끝값은 반드시 맞춘다.
+  clearTimeout(animChart.done);
+  animChart.done = setTimeout(() => { cancelAnimationFrame(animTimer); draw(1); }, dur + 60);
+}
+const animChart = {done: 0};
 
 // 목록에서 지역을 누르면 아래 상세로 내려가 보여준다.
 function showDetail(){
@@ -1062,11 +1124,12 @@ function render(){
       html += '<div class="row" data-key="' + keyOf(r) + '" aria-selected="' + (keyOf(r) === state.picked) + '">' +
                 '<div class="nm"><span class="rank">' + (state.page * PER_PAGE + i + 1) + '</span>' +
                 r.name + mktTag(r) + where + '</div>' +
-                stats.map((s, ci) => cell(r[s.m.k], s.max, s.med, barColor(ci))).join('') +
+                stats.map((s, ci) => cell(r[s.m.k], s.max, s.med, barColor(ci), 'n' + i + ':' + ci)).join('') +
               '</div>';
     });
   }
   rows.innerHTML = html;
+  animateChart(rows);
   for (const el of rows.querySelectorAll('.row'))
     el.onclick = () => { state.picked = el.dataset.key; render(); showDetail(); };
 
@@ -1119,19 +1182,24 @@ function renderFew(){
     html += '<div class="none">해당하는 지역이 없습니다.<br>검색어를 지우거나 지역 범위를 넓혀보세요.</div>';
   } else {
     slice.forEach((r, i) => {
-      const w = Math.min(r._few, 200) / 2;
+      const w = Math.round(Math.min(r._few, 200) / 2 * 100) / 100;
+      const slot = 'f' + i;
+      const was = PREV[slot] || {w: 0};
+      PREV[slot] = Object.assign(PREV[slot] || {}, {w});
       html += '<div class="row" data-key="' + keyOf(r) + '" aria-selected="' + (keyOf(r) === state.picked) + '">' +
         '<div class="nm"><span class="rank">' + (state.page * PER_PAGE + i + 1) + '</span>' + r.name + mktTag(r) +
           (r.parent ? '<span class="p">' + r.parent + '</span>' : '') + '</div>' +
-        '<div class="n">' + fmt(r.sch_total) + '<small>개</small></div>' +
-        '<div class="n">' + fmt(r.pop_target) + '<small>명</small></div>' +
-        '<div class="n">' + fmt(r.eng_total) + '<small>곳</small></div>' +
+        '<div class="n">' + animNum(r.sch_total, slot + ':s') + '<small>개</small></div>' +
+        '<div class="n">' + animNum(r.pop_target, slot + ':p') + '<small>명</small></div>' +
+        '<div class="n">' + animNum(r.eng_total, slot + ':e') + '<small>곳</small></div>' +
         '<div class="pct"><div class="bar"><span class="' + (r._few < 100 ? 'lo' : 'hi') +
-          '" style="width:' + w + '%"></span><i></i></div><b>' + r._few + '%</b></div>' +
+          '" style="width:' + was.w + '%" data-w="' + w + '"></span><i></i></div><b>' +
+          animNum(r._few, slot + ':x', 'pct') + '</b></div>' +
       '</div>';
     });
   }
   rows.innerHTML = html + '</div>';
+  animateChart(rows);
   for (const el of rows.querySelectorAll('.row'))
     el.onclick = () => { state.picked = el.dataset.key; render(); showDetail(); };
 

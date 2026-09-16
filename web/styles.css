@@ -499,3 +499,9 @@ body.few-mode .meta .legend{display:none}
 
 /* 아직 아무 지역도 고르지 않았을 때 */
 .detail .dempty{padding:34px 22px; text-align:center; color:var(--ink-3); font-size:15px; word-break:keep-all}
+
+/* 그래프 움직임 — 조건을 바꾸면 막대가 새 길이로 흘러간다 */
+.rows .fill, .few .bar span{transition:width .65s cubic-bezier(.2,.75,.25,1), background-color .3s}
+.rows .med{transition:left .65s cubic-bezier(.2,.75,.25,1)}
+.anum{font-variant-numeric:tabular-nums}
+.rows.still .fill, .rows.still .med, .rows.still .few .bar span{transition:none}
