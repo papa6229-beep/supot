@@ -190,6 +190,8 @@ select.add-col{
 .stat .r{font-size:13px; color:var(--ink-3); width:46px; text-align:right; font-variant-numeric:tabular-nums}
 /* 부동산 칸의 설명은 좁은 칸에서 끊기지 않게 값 아래 한 줄로 */
 .stat .sub-note{flex-basis:100%; margin-top:1px; font-size:12.5px; color:var(--ink-3); line-height:1.4}
+/* 항목 줄 사이 옅은 점선 — 줄과 줄 사이에만 */
+.groups .stat + .stat{border-top:1px dashed #e4e1da}
 .stat.sub1 .k{padding-left:12px; color:var(--ink-2)}
 .stat.sub2 .k{padding-left:26px; color:var(--ink-2)}
 .derived{
