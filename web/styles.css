@@ -528,3 +528,18 @@ body.blank-mode .meta .legend{visibility:hidden}
   color:var(--ink-2); border-radius:8px; padding:6px 12px; font-size:13px}
 .side .reset:hover{border-color:var(--accent); color:var(--accent)}
 .add-col:disabled{color:var(--ink-4); cursor:not-allowed}
+
+/* 큰 학원가와의 거리 */
+.msec.hub .hrow{display:flex; align-items:baseline; gap:12px; padding:8px 0; border-top:1px dashed #e4e1da}
+.msec.hub .hrow:first-of-type{border-top:0}
+.msec.hub .hk{width:150px; flex:none; font-size:14px; color:var(--ink-2)}
+.msec.hub .hrow b{font-size:16.5px; color:var(--ink)}
+.msec.hub .hv{margin-left:auto; font-size:18px; font-weight:800; font-variant-numeric:tabular-nums}
+.msec.hub .hrow.sub b, .msec.hub .hrow.sub .hv{font-size:15px; font-weight:600; color:var(--ink-2)}
+.msec.hub .hrow.here b{color:var(--accent)}
+.msec.hub .hlore{margin-top:10px; background:#f7f4ee; border-radius:9px; padding:10px 14px}
+.msec.hub .hlore .tag{display:inline-block; font-size:12px; font-weight:800; color:#7a5a1a;
+  background:#efe3c8; border-radius:5px; padding:1px 7px; margin-bottom:4px}
+.msec.hub .hlore p{margin:4px 0; font-size:14.5px; line-height:1.6; color:var(--ink)}
+.msec.hub .hlore .lk{color:#7a5a1a; font-weight:600}
+@media (max-width:700px){ .msec.hub .hrow{flex-wrap:wrap} .msec.hub .hk{width:100%} }

@@ -61,6 +61,7 @@ python build/prep_dongmap.py <연계정보.csv>       # 82MB 원본 -> 126KB 추
 python build/prep.py                             # -> web/data/regions.json
 python build/prep_places.py                      # -> web/data/places/ (동별 지도·학원 목록)
 python build/prep_market.py                      # -> web/data/market.json (개원시장 동별 분석)
+python build/prep_hubs.py                        # -> web/data/hubs.json (큰 학원가까지 거리, places 다음에)
 ```
 
 `data/raw/aca_*.csv`, `school_*.csv`는 커서 저장소에 담지 않는다. 위 스크립트로 받는다.
