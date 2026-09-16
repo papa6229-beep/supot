@@ -1,0 +1,9 @@
+# 원본 스냅샷은 크고 스크립트로 다시 받을 수 있어 담지 않는다.
+# (build/fetch_neis.py, build/fetch_population.py 참고)
+data/raw/aca_*.csv
+data/raw/school_*.csv
+
+# 파이썬
+__pycache__/
+*.pyc
+.venv/

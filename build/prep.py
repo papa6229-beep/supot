@@ -1,0 +1,424 @@
+# -*- coding: utf-8 -*-
+"""공공데이터 원본 CSV -> 화면이 읽는 지역별 집계 JSON
+
+입력  data/raw/aca_2026-08.csv      NEIS 학원교습소정보 월 스냅샷 (CP949)
+      data/raw/school_2026-08.csv   NEIS 학교기본정보 월 스냅샷 (CP949)
+      data/raw/pop_2026-08.csv      행안부 행정동별 연령별 인구 (fetch_population.py)
+출력  web/data/regions.json
+
+지역 키는 (시도, 구·시, 법정동). 학원·학교 원본에 좌표가 없어 주소에서 동을 뽑는다.
+인구는 행정동 기준이라 법정동과 이름이 달라 시·군·구 단위까지만 붙는다.
+"""
+import json
+import re
+import sys
+from collections import defaultdict
+from pathlib import Path
+
+import pandas as pd
+
+ROOT = Path(__file__).resolve().parent.parent
+ACA_SRC = ROOT / "data/raw/aca_2026-08.csv"
+SCH_SRC = ROOT / "data/raw/school_2026-08.csv"
+POP_SRC = ROOT / "data/raw/pop_2026-08.csv"
+DONGMAP_SRC = ROOT / "data/raw/dongmap.csv"
+OUT = ROOT / "web/data/regions.json"
+
+# 주민등록 인구를 학교급 나이대로 자른다 (만 나이 기준, 양끝 포함).
+AGE_BANDS = {
+    "pop_elem": (6, 11),      # 초등학생 나이
+    "pop_mid": (12, 14),      # 중학생 나이
+    "pop_target": (9, 14),    # 초등 고학년 + 중등 = 이번 사업 대상
+}
+
+BASE_YM = "2026-08"
+NEW_YEARS = 3                       # '최근에 생긴 곳'으로 볼 기간
+SIDO = {"서울특별시교육청": "서울", "경기도교육청": "경기"}
+UNKNOWN_DONG = "(동 미상)"
+
+# --- 영어 판별 ---------------------------------------------------------------
+# '어학원'은 국어학원(658곳)·헤어학원·중국어학원 등을 끌고 오므로 앞글자를 배제한다.
+ENG_NAME = re.compile(
+    r"영어|잉글리[시쉬]|[Ee]nglish|ENGLISH|랭귀지|랭기지|ESL"
+    r"|파닉스|[Pp]honics|(?<!국)(?<!헤)(?<!중국)(?<!일본)(?<!외국)어학원"
+)
+ENG_COURSE = re.compile(r"영어|[Ee]nglish|파닉스|리딩|리스닝|스피킹")
+OTHER_LANG = re.compile(r"중국어|일본어|베트남|스페인어|프랑스어|독일어|러시아어|태국어|아랍어|한국어")
+ENG_STRICT = re.compile(r"영어|잉글리[시쉬]|[Ee]nglish|ENGLISH")
+
+
+def mark_english(df: pd.DataFrame) -> pd.Series:
+    """학원명·교습과정·수강료 내역을 함께 보고 영어 교습 여부를 판정한다.
+
+    교습과정명에는 '영어'라는 값이 없고 '보습' 같은 대분류만 들어와서
+    한 필드만으로는 판별되지 않는다. 교습계열 '외국어'에는 중국어·일본어
+    학원이 섞여 있어 단독 신호로 쓰지 않는다.
+
+    교습소는 법으로 1과목만 가르치므로 이름이 곧 과목이다. '김보영과학교습소'
+    처럼 교습과정에 '영어'가 잘못 입력된 곳이 있어 교습소는 이름 신호를 요구한다.
+    """
+    by_name = df["학원명"].str.contains(ENG_NAME, na=False)
+    by_course = (df["교습과정목록명"].str.contains(ENG_COURSE, na=False)
+                 | df["인당수강료"].str.contains(ENG_COURSE, na=False))
+    other = (df["학원명"].str.contains(OTHER_LANG, na=False)
+             & ~df["학원명"].str.contains(ENG_STRICT, na=False))
+    is_institute = df["학원교습소명"] == "교습소"
+    return ((by_name | (by_course & ~is_institute)) & ~other)
+
+
+# --- 전문 / 복합 ------------------------------------------------------------
+# 영어 말고 다른 교과목 신호. '외국어'의 '국어', '보습·논술'의 '논술',
+# '영어독서'의 '독서'는 영어학원에도 흔해서 제외하거나 앞글자를 배제한다.
+OTHER_SUBJECT = re.compile(
+    r"수학|과학|사회|한문|한자|코딩|컴퓨터|미술|음악|피아노|바둑|웅변|속독|역사"
+    r"|(?<!외)(?<!중)(?<!한)(?<!영)국어"
+)
+
+
+def mark_combined(df: pd.DataFrame) -> pd.Series:
+    """영어와 다른 과목을 같이 가르치는 곳을 표시한다.
+
+    교습소는 1과목만 가능하므로 언제나 '전문'이다.
+    분야명 '종합(대)'는 종합학원이라는 뜻이 아니라 분류 코드 이름이어서
+    (대치심슨어학원 같은 순수 어학원 427곳이 여기 들어간다) 신호로 쓰지 않는다.
+    """
+    combined = (df["학원명"].str.contains(OTHER_SUBJECT, na=False)
+                | df["교습과정목록명"].str.contains(OTHER_SUBJECT, na=False))
+    return combined & (df["학원교습소명"] == "학원")
+
+
+# --- 주소 파싱 ---------------------------------------------------------------
+DONG_TOKEN = re.compile(r"^[가-힣]+[0-9]*(동|읍|면|가)$")
+
+
+def dong_candidates(detail: str) -> list[str]:
+    """도로명상세주소에서 동으로 보이는 토막을 등장 순서대로 모은다.
+
+    ', 3층 (개포동, 삼성빌딩)'              -> ['개포동']
+    ', 2층 211호(상가동) (대치동, 삼성아파트)' -> ['상가동', '대치동']   <- 앞은 건물 이름
+    """
+    if not detail:
+        return []
+    out = []
+    for inner in re.findall(r"\(([^()]*)\)", detail):
+        for part in (p.strip() for p in inner.split(",")):
+            if DONG_TOKEN.fullmatch(part):
+                out.append(part)
+    if not out:
+        m = re.search(r"([가-힣]+[0-9]*(?:동|읍|면|가))(?:[,\s]|$)", detail)
+        if m:
+            out.append(m.group(1))
+    return out
+
+
+# 건물 이름이 동 이름처럼 보이는 것들. '상가동 302호'가 대표적이다.
+NOT_A_DONG = {"상가동", "상가", "별관", "본관", "후관", "신관", "관리동", "사무동", "기숙사동"}
+
+
+def pick_dong(detail: str, known: set[str]) -> str:
+    """후보 중 실제로 존재하는 동을 고른다.
+
+    '(상가동)'처럼 아파트 상가 동호수가 앞 괄호에 오는 경우가 1천 건 넘게 있어서,
+    연계정보에 있는 이름인지 확인하고 고른다.
+    """
+    candidates = [c for c in dong_candidates(detail) if c not in NOT_A_DONG]
+    for name in candidates:
+        if name in known:
+            return name
+    # 퇴계원면 -> 퇴계원읍처럼 읍·면 승격으로 표기가 어긋난 경우를 한 번 더 본다.
+    for name in candidates:
+        for a, b in (("면", "읍"), ("읍", "면")):
+            if name.endswith(a) and name[:-1] + b in known:
+                return name[:-1] + b
+    return candidates[0] if candidates else UNKNOWN_DONG
+
+
+def parse_gusi(road_address: str) -> str | None:
+    """도로명주소에서 시·군·구를 뽑는다.
+
+    '서울특별시 송파구 송이로 45'   -> '송파구'
+    '경기도 성남시 분당구 정자일로'  -> '성남시'   (학원 데이터의 행정구역명과 맞춘다)
+    '평택시 고덕국제5로 165'        -> '평택시'   (시도가 빠진 주소도 있다)
+    """
+    for token in (road_address or "").split()[:2]:
+        if len(token) > 1 and token[-1] in "시군구" and not token.endswith("특별시") \
+           and not token.endswith("광역시") and not token.endswith("자치시"):
+            return token
+    return None
+
+
+# --- 수강료 파싱 -------------------------------------------------------------
+FEE_ITEM = re.compile(r"([^:,]+):\s*(\d+)")
+
+
+def fee_values(text: str) -> list[int]:
+    """'문법 영어:268000, 리딩:192000' -> [268000, 192000]
+
+    월 수강료로 보기 어려운 값(만원 미만·3백만원 초과)은 버린다.
+    """
+    if not text or not text.strip():
+        return []
+    return [v for _, a in FEE_ITEM.findall(text)
+            if 10_000 <= (v := int(a)) <= 3_000_000]
+
+
+# --- 로딩 --------------------------------------------------------------------
+def load_academies(known: dict[tuple[str, str], set[str]]) -> pd.DataFrame:
+    df = pd.read_csv(ACA_SRC, encoding="cp949", dtype=str, low_memory=False).fillna("")
+    df = df[df["시도교육청명"].isin(SIDO)].copy()
+    df["시도"] = df["시도교육청명"].map(SIDO)
+    # 행정구역명이 비어 있는 곳이 48건 있어 도로명주소에서 보충한다.
+    gusi = df["행정구역명"].str.strip()
+    df["구시"] = gusi.where(gusi != "", df["도로명주소"].map(parse_gusi))
+    df["동"] = [pick_dong(d, known.get((s, g), set()))
+                for d, s, g in zip(df["도로명상세주소"], df["시도"], df["구시"])]
+    df["영어"] = mark_english(df)
+    df["복합"] = mark_combined(df)
+    df["개설연도"] = pd.to_numeric(df["개설일자"].str.slice(0, 4), errors="coerce")
+    return df.dropna(subset=["구시"])
+
+
+def load_population() -> pd.DataFrame:
+    """행정동별 1세 단위 인구를 나이대로 잘라 돌려준다."""
+    df = pd.read_csv(POP_SRC, dtype=str).fillna("")
+    parts = df["행정구역"].str.strip().str.replace(r"\s+", " ", regex=True) \
+                          .str.extract(r"^(.*?)\s*\((\d+)\)$")[0].str.split()
+    df["시도"] = parts.str[0].map({"서울특별시": "서울", "경기도": "경기"})
+    df["구시"] = parts.str[1]
+    df["행정동"] = parts.str[-1]
+    # '성남시 수정구'처럼 구 단위 소계 행이 섞여 있어 빼야 이중 집계가 안 된다.
+    df = df[df["행정동"].str.endswith(("동", "읍", "면", "가"))]
+    df = df.dropna(subset=["시도"])
+
+    def age_col(age: int) -> str:
+        return f"{BASE_YM[:4]}년{BASE_YM[5:]}월_계_{age}세"
+
+    for name, (lo, hi) in AGE_BANDS.items():
+        cols = [age_col(a) for a in range(lo, hi + 1)]
+        df[name] = sum(pd.to_numeric(df[c].str.replace(",", ""), errors="coerce").fillna(0)
+                       for c in cols).astype(int)
+
+    return df[["시도", "구시", "행정동"] + list(AGE_BANDS)]
+
+
+def normalize_admin(name: str) -> str:
+    """행정동 이름 표기 차이를 맞춘다.
+
+    인구 통계는 '창신제1동'·'종로1.2.3.4가동', 연계정보는 '창신1동'·'종로1·2·3·4가동'
+    으로 적는다. 이 정규화로 1,029개 중 1,013개가 맞물린다.
+    """
+    name = re.sub(r"제(\d)", r"\1", name)
+    name = re.sub(r"[·.,∙･]", "·", name)
+    return name.replace(" ", "")
+
+
+def load_dongmap() -> pd.DataFrame:
+    """행정동 ↔ 법정동 연결표 (prep_dongmap.py 가 만든 작은 파일)."""
+    df = pd.read_csv(DONGMAP_SRC, dtype=str).fillna("")
+    # 구·시 자기 자신을 가리키는 행은 뺀다 ('가평군 / 가평군 / 가평군').
+    return df[(df["행정동"] != df["구시"]) & (df["법정동"] != df["구시"])]
+
+
+def known_dongs(dongmap: pd.DataFrame) -> dict[tuple[str, str], set[str]]:
+    """구·시별로 실제 존재하는 동 이름 모음. 주소 파싱 검증에 쓴다."""
+    out: dict[tuple[str, str], set[str]] = defaultdict(set)
+    for sido, gusi, admin, legal in zip(dongmap["시도"], dongmap["구시"],
+                                        dongmap["행정동"], dongmap["법정동"]):
+        out[(sido, gusi)].update((admin, legal))
+    return out
+
+
+def build_zones(dongmap: pd.DataFrame) -> tuple[dict, dict]:
+    """행정동-법정동 이분그래프의 연결 요소를 '동 묶음'으로 만든다.
+
+    한 행정동이 법정동 여러 개에 걸치고(청운효자동 → 청운동·효자동·…)
+    한 법정동이 행정동 여러 개로 쪼개지기도 해서(상계동 ← 상계1~10동),
+    얽힌 것끼리 묶어야 인구와 학원이 어느 쪽으로도 새지 않는다.
+
+    반환: (법정동 -> 묶음키), (행정동 -> 묶음키). 묶음키는 법정동 이름을 이어붙인 문자열.
+    """
+    by_legal, by_admin = {}, {}
+    for (sido, gusi), sub in dongmap.groupby(["시도", "구시"]):
+        adj: dict[tuple[str, str], set] = defaultdict(set)
+        for admin, legal in zip(sub["행정동"], sub["법정동"]):
+            adj[("A", admin)].add(("L", legal))
+            adj[("L", legal)].add(("A", admin))
+
+        seen: set = set()
+        for start in adj:
+            if start in seen:
+                continue
+            stack, group = [start], []
+            seen.add(start)
+            while stack:
+                node = stack.pop()
+                group.append(node)
+                for nb in adj[node]:
+                    if nb not in seen:
+                        seen.add(nb)
+                        stack.append(nb)
+            legals = sorted(name for kind, name in group if kind == "L")
+            key = "·".join(legals)
+            for kind, name in group:
+                target = by_legal if kind == "L" else by_admin
+                target[(sido, gusi, normalize_admin(name) if kind == "A" else name)] = key
+    return by_legal, by_admin
+
+
+def zone_label(legals: list[str], weights: dict[str, int]) -> str:
+    """묶음 이름. 학원이 많은 법정동을 앞에 세워 알아보기 쉽게 한다."""
+    if len(legals) == 1:
+        return legals[0]
+    ordered = sorted(legals, key=lambda n: -weights.get(n, 0))
+    if len(ordered) == 2:
+        return " · ".join(ordered)
+    return f"{ordered[0]} · {ordered[1]} 외 {len(ordered) - 2}"
+
+
+def load_schools(known: dict[tuple[str, str], set[str]]) -> pd.DataFrame:
+    df = pd.read_csv(SCH_SRC, encoding="cp949", dtype=str, low_memory=False).fillna("")
+    df = df[df["시도교육청명"].isin(SIDO)].copy()
+    # 초·중학교만. '각종학교(초)'·'평생학교' 등은 일반 학령인구 수요와 성격이 달라 제외한다.
+    df = df[df["학교종류명"].isin(["초등학교", "중학교"])].copy()
+    df["시도"] = df["시도교육청명"].map(SIDO)
+    df["구시"] = df["도로명주소"].map(parse_gusi)
+    df = df.dropna(subset=["구시"])
+    df["동"] = [pick_dong(d, known.get((s, g), set()))
+                for d, s, g in zip(df["도로명상세주소"], df["시도"], df["구시"])]
+    return df
+
+
+# --- 집계 --------------------------------------------------------------------
+def summarize(aca: pd.DataFrame, sch: pd.DataFrame, cutoff: int) -> dict:
+    eng = aca[aca["영어"]] if len(aca) else aca
+    fees = [v for text in eng.get("인당수강료", []) for v in fee_values(text)]
+    return {
+        "eng_total": len(eng),
+        "eng_academy": int((eng["학원교습소명"] == "학원").sum()) if len(eng) else 0,
+        "eng_institute": int((eng["학원교습소명"] == "교습소").sum()) if len(eng) else 0,
+        "eng_solo": int(((eng["학원교습소명"] == "학원") & ~eng["복합"]).sum()) if len(eng) else 0,
+        "eng_combo": int(eng["복합"].sum()) if len(eng) else 0,
+        "eng_new3y": int((eng["개설연도"] >= cutoff).sum()) if len(eng) else 0,
+        "all_total": len(aca),
+        "fee_median": int(pd.Series(fees).median()) if fees else None,
+        "sch_elem": int((sch["학교종류명"] == "초등학교").sum()) if len(sch) else 0,
+        "sch_mid": int((sch["학교종류명"] == "중학교").sum()) if len(sch) else 0,
+        "sch_total": len(sch),
+    }
+
+
+def build(aca: pd.DataFrame, sch: pd.DataFrame, keys: list[str], cutoff: int) -> list[dict]:
+    """학원과 학교를 같은 지역 키로 묶는다. 한쪽에만 있는 지역도 빠짐없이 담는다."""
+    aca_groups = dict(tuple(aca.groupby(keys, sort=False)))
+    sch_groups = dict(tuple(sch.groupby(keys, sort=False)))
+    empty_aca = aca.iloc[0:0]
+    empty_sch = sch.iloc[0:0]
+
+    rows = []
+    for key in sorted(set(aca_groups) | set(sch_groups)):
+        row = summarize(aca_groups.get(key, empty_aca), sch_groups.get(key, empty_sch), cutoff)
+        row["sido"] = key[0]
+        row["parent"] = key[1] if len(key) == 3 else None
+        row["name"] = key[-1]
+        rows.append(row)
+    return rows
+
+
+def attach_population(rows: list[dict], sums: dict, keyer) -> int:
+    """집계 결과에 인구를 붙인다. 못 붙인 행 수를 돌려준다."""
+    missing = 0
+    for row in rows:
+        band = sums.get(keyer(row))
+        if band is None:
+            missing += 1
+        for name in AGE_BANDS:
+            row[name] = int(band[name]) if band is not None else None
+    return missing
+
+
+def main() -> None:
+    for src in (ACA_SRC, SCH_SRC, POP_SRC, DONGMAP_SRC):
+        if not src.exists():
+            sys.exit(f"원본이 없습니다: {src}")
+
+    dongmap = load_dongmap()
+    known = known_dongs(dongmap)
+    zone_of_legal, zone_of_admin = build_zones(dongmap)
+
+    aca, sch = load_academies(known), load_schools(known)
+    cutoff = int(BASE_YM[:4]) - NEW_YEARS
+    pop = load_population()
+
+    # --- 구·시 ---------------------------------------------------------------
+    gu = build(aca, sch, ["시도", "구시"], cutoff)
+    gu_pop = {k: v for k, v in
+              pop.groupby(["시도", "구시"])[list(AGE_BANDS)].sum().iterrows()}
+    attach_population(gu, gu_pop, lambda r: (r["sido"], r["name"]))
+
+    # --- 법정동 (인구는 붙지 않는다) --------------------------------------------
+    dong = build(aca, sch, ["시도", "구시", "동"], cutoff)
+    for row in dong:
+        for name in AGE_BANDS:
+            row[name] = None
+
+    # --- 동 묶음 -------------------------------------------------------------
+    aca_z = aca.copy()
+    sch_z = sch.copy()
+    for frame in (aca_z, sch_z):
+        # 읍·면은 연계정보에서 행정동 쪽에 있어 법정동으로는 안 잡힌다.
+        frame["묶음"] = [zone_of_legal.get((s, g, d)) or zone_of_admin.get((s, g, normalize_admin(d)), "")
+                        for s, g, d in zip(frame["시도"], frame["구시"], frame["동"])]
+    lost_aca = int((aca_z["묶음"] == "").sum())
+    lost_eng = int(aca_z.loc[aca_z["묶음"] == "", "영어"].sum())
+    aca_z, sch_z = aca_z[aca_z["묶음"] != ""], sch_z[sch_z["묶음"] != ""]
+
+    zone = build(aca_z, sch_z, ["시도", "구시", "묶음"], cutoff)
+    # 묶음 이름은 영어학원이 많은 법정동을 앞세운다.
+    weight = aca[aca["영어"]].groupby("동").size().to_dict()
+    for row in zone:
+        row["legals"] = row["name"].split("·")
+        row["name"] = zone_label(row["legals"], weight)
+
+    pop_z = pop.copy()
+    pop_z["묶음"] = [zone_of_admin.get((s, g, normalize_admin(d)), "") for s, g, d
+                    in zip(pop_z["시도"], pop_z["구시"], pop_z["행정동"])]
+    lost_pop = int((pop_z["묶음"] == "").sum())
+    zone_pop = {k: v for k, v in
+                pop_z[pop_z["묶음"] != ""].groupby(["시도", "구시", "묶음"])[list(AGE_BANDS)]
+                .sum().iterrows()}
+    no_pop = attach_population(
+        zone, zone_pop, lambda r: (r["sido"], r["parent"], "·".join(sorted(r["legals"]))))
+
+    payload = {
+        "base_ym": BASE_YM,
+        "sources": ["나이스 교육정보 개방포털 · 학원교습소정보",
+                    "나이스 교육정보 개방포털 · 학교기본정보",
+                    "행정안전부 · 주민등록 인구통계",
+                    "국가데이터처 · 법정동 연계정보"],
+        "counts": {
+            "rows": len(aca),
+            "english": int(aca["영어"].sum()),
+            "dong_parsed": int((aca["동"] != UNKNOWN_DONG).sum()),
+            "schools": len(sch),
+            "zone_lost_aca": lost_aca,
+            "zone_lost_eng": lost_eng,
+            "zone_no_pop": no_pop,
+        },
+        "gu": sorted(gu, key=lambda r: -r["eng_total"]),
+        "dong": sorted(dong, key=lambda r: -r["eng_total"]),
+        "zone": sorted(zone, key=lambda r: -r["eng_total"]),
+    }
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+    OUT.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    print(f"저장: {OUT.relative_to(ROOT)}  ({OUT.stat().st_size/1024:.0f} KB)")
+    print(f"  학원·교습소 {len(aca):,}건 (영어 {payload['counts']['english']:,}) "
+          f"/ 동 파싱 {payload['counts']['dong_parsed']/len(aca)*100:.1f}%")
+    print(f"  초·중학교 {len(sch):,}개교")
+    print(f"  구·시 {len(gu)}개 / 법정동 {len(dong)}개 / 동 묶음 {len(zone)}개")
+    print(f"  묶음에 못 넣은 학원 {lost_aca:,}건 "
+          f"/ 인구 미매칭 행정동 {lost_pop}개 / 인구 없는 묶음 {no_pop}개")
+
+
+if __name__ == "__main__":
+    main()
