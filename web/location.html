@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 — supot</title>
-<link rel="stylesheet" href="styles.css?v=13">
+<link rel="stylesheet" href="styles.css?v=14">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -106,7 +106,7 @@ const METRICS = [
   {k:'pop_mid',       g:'인구', l:'중학생 나이 인구',        u:'명', sub:true, d:'만 12~14세 인구입니다.'},
 ];
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '13';
+const V = '14';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -249,7 +249,8 @@ function renderDetail(list){
     const r = RENT && RENT.gusi[row.sido + '/' + (row.parent || row.name)];
     if (r){
       out += '<div class="sep">소규모상가 임대 <small>' + RENT.quarter + ' · 추정치</small></div>' +
-             stat('㎡당 월임대료', Math.round(r.rent * 1000).toLocaleString('ko-KR') + '원') +
+             stat('㎡당 월 환산임대료', Math.round(r.rent * 1000).toLocaleString('ko-KR') + '원',
+                  '보증금 포함') +
              stat('공실률', r.vacancy + '%') +
              stat('조사 상권', '<small>' + r.areas.slice(0, 3).join(' · ') + '</small>', '');
     }
