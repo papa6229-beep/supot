@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 — supot</title>
-<link rel="stylesheet" href="styles.css?v=16">
+<link rel="stylesheet" href="styles.css?v=17">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -106,7 +106,7 @@ const METRICS = [
   {k:'pop_mid',       g:'인구', l:'중학생 나이 인구',        u:'명', sub:true, d:'만 12~14세 인구입니다.'},
 ];
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '16';
+const V = '17';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -401,9 +401,15 @@ function cardFor(p, all){
     }
     if (shop){
       const r = RENT && RENT.gusi[MAP_REGION.sido + '/' + MAP_REGION.gusi];
-      if (r) line.push(MAP_REGION.gusi + ' 임대 ㎡당 월 <b>' +
-                       Math.round(r.rent * 1000).toLocaleString('ko-KR') + '원</b>' +
-                       ' <small>구 평균 · 추정 · 보증금 포함</small>');
+      if (r){
+        // ㎡당 값은 와닿지 않는다. 이 건물 면적을 곱해 월 얼마인지로 바꿔 보여준다.
+        const perM2 = r.rent * 1000;
+        const monthly = Math.round(perM2 * p.ar / 10_000);
+        line.push('<hr>이 넓이면 월 <b>' + monthly.toLocaleString('ko-KR') + '만원</b> 쯤' +
+                  ' <small>전용 ' + p.ar + '㎡ · ' + Math.round(p.ar / 3.3) + '평</small>');
+        line.push('<small>' + MAP_REGION.gusi + ' 소규모상가 ㎡당 월 ' +
+                  Math.round(perM2).toLocaleString('ko-KR') + '원 · 보증금 포함 환산 · 구 평균 추정치</small>');
+      }
       if (p.k.includes('근린생활')) line.push('<u>학원이 들어갈 수 있는 용도입니다</u>');
     }
   } else {
