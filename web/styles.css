@@ -736,3 +736,25 @@ label.inline input{font:inherit; padding:6px 10px; border:1px solid var(--line-2
 .doc details.fold > summary{cursor:pointer; font-size:15px; font-weight:700; color:var(--ink-2);
   padding:10px 14px; border:1px dashed var(--line-2); border-radius:9px; background:#fbfaf7}
 .doc details.fold[open] > summary{margin-bottom:12px}
+
+/* 자료 기준일 펼침 */
+details.dates{position:relative; display:inline-block; font-weight:500}
+details.dates > summary{list-style:none; cursor:pointer; font-size:13px; color:var(--ink-2);
+  padding:3px 10px; border:1px solid var(--line-2); border-radius:999px; background:#fff; white-space:nowrap}
+details.dates > summary::-webkit-details-marker{display:none}
+details.dates > summary::after{content:' ▾'; color:var(--ink-4)}
+details.dates[open] > summary::after{content:' ▴'}
+details.dates .dbody{position:absolute; right:0; top:calc(100% + 6px); z-index:50; width:min(440px, calc(100vw - 32px));
+  background:#fff; border:1px solid var(--line-2); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.08);
+  padding:6px 14px 10px; text-align:left}
+.foot details.dates .dbody{right:auto; left:50%; transform:translateX(-50%); top:auto; bottom:calc(100% + 6px)}
+.dtbl{width:100%; border-collapse:collapse; font-size:13px}
+.dtbl th, .dtbl td{padding:8px 0; border-bottom:1px dashed var(--line-2); vertical-align:top; text-align:left}
+.dtbl tr:last-child th, .dtbl tr:last-child td{border-bottom:0}
+.dtbl th{font-weight:600; color:var(--ink); padding-right:12px; width:44%}
+.dtbl td b{color:var(--ink); font-weight:600}
+.dtbl small{display:block; color:var(--ink-3); font-weight:400; font-size:12px; margin-top:1px}
+.dnote{margin:6px 0 0; font-size:12px; color:var(--ink-3); line-height:1.5}
+@media (max-width:760px){
+  .topbar details.dates .dbody{right:auto; left:0}
+}
