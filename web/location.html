@@ -6,14 +6,14 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 분석 — Chalkmap</title>
-<link rel="stylesheet" href="styles.css?v=39">
+<link rel="stylesheet" href="styles.css?v=40">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 <script>
 // 브라우저가 옛 화면을 붙잡고 있으면 새 버전으로 한 번 다시 불러온다.
 // 올릴 때마다 이 숫자와 version.json 을 같이 올린다.
 (function(){
-  var PAGE_V = '39';
+  var PAGE_V = '40';
   fetch('version.json?t=' + Date.now(), {cache: 'no-store'})
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(d){
@@ -139,7 +139,8 @@ const METRICS = [
   {k:'pop_elem',      g:'인구', l:'초등학생 나이 인구',      u:'명', sub:1, d:'만 6~11세 인구입니다.'},
   {k:'pop_mid',       g:'인구', l:'중학생 나이 인구',        u:'명', sub:1, d:'만 12~14세 인구입니다.'},
   {k:'hub_km',        g:'입지', l:'큰 학원가까지 거리', u:'km', partial:true, dec:1, keepZero:true,
-   d:'대치·목동·중계·평촌·분당·일산 가운데 <b>가장 가까운 큰 학원가</b>까지의 직선거리입니다. ' +
+   d:'대치·목동·중계·평촌·분당·일산(조사 문서)과 다산·동탄·부천(영어학원 100곳 이상, 우리 데이터) 가운데 ' +
+     '<b>가장 가까운 큰 학원가</b>까지의 직선거리입니다. ' +
      '멀수록 아이들이 원정을 가기 번거로운 곳입니다. 학원가 중심은 그 동 영어학원들의 가운데, ' +
      '지역 위치는 그 지역 학원·학교들의 가운데로 잡았습니다.'},
 ];
@@ -155,7 +156,7 @@ const kindLabel = k => (ACA_KIND[k] && ACA_KIND[k].label) || k;
 
 const indent = m => m.sub ? '  '.repeat(m.sub) + '└ ' : '';
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '39';
+const V = '40';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -389,6 +390,9 @@ function hubSection(row){
   if (own){
     lines.push('<div class="hrow here"><span class="hk">이 동이 곧</span><b>' + own.name + '</b>' +
                '<span class="hv">영어학원 ' + fmt(own.eng) + '곳</span></div>');
+    if (own.kind === 'data')
+      lines.push('<p class="hdata"><span class="tag data">데이터</span>조사 문서의 큰 학원가 목록에는 없지만, ' +
+                 '우리 데이터로 영어학원이 ' + fmt(own.eng) + '곳 모여 있어 큰 학원가로 넣었습니다.</p>');
   } else {
     lines.push('<div class="hrow"><span class="hk">가장 가까운 큰 학원가</span><b>' + hub(d.hub).name + '</b>' +
                '<span class="hv">' + d.km.toFixed(1) + 'km</span></div>');
@@ -398,6 +402,7 @@ function hubSection(row){
   // 통설상 이 지역 학생이 향한다는 학원가 (가장 가까운 곳과 다를 수 있다)
   const lore = [];
   for (const h of HUBS.hubs){
+    if (!h.lore) continue;
     if (own && own.id === h.id){ lore.push('<b>' + h.name + '</b> — ' + h.lore); continue; }
     if (h.from_gu.includes(gu) || h.from_dong.includes(key)){
       const dist = h.id === d.hub ? d.km : h.id === d.hub2 ? d.km2 : null;

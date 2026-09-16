@@ -2,6 +2,7 @@
 """큰 학원가까지의 직선거리를 동·구마다 잰다.
 
 학원가 목록과 '어디서 학생을 끌어들이는가'는 학부모 조사 문서(2026.09)를 따른다.
+여기에 우리 데이터로 영어학원이 100곳 넘게 모인 동(다산·동탄 반송·부천 중동·상동)을 더했다.
 그 흐름은 위키·블로그에서 반복되는 통설이고 정량 통계가 아니다. 화면에도 그렇게 적는다.
 거리는 우리 좌표로 잰 사실이다.
   - 학원가 중심: 그 동들에 있는 영어학원 좌표의 가운데(중앙값)
@@ -43,6 +44,13 @@ HUBS = [
     {"id": "ilsan", "name": "일산 후곡·백마", "dongs": ["경기/고양시/일산동", "경기/고양시/마두동"],
      "lore": "서북부 사교육 중심. 후곡은 대형학원 위주이고 운정(파주)·화정·행신·능곡·원당·삼송·구파발에서 온다.",
      "from_gu": ["경기/고양시", "경기/파주시"], "from_dong": ["서울/은평구/진관동"]},
+    # 문서 목록에는 없지만 우리 데이터로 영어학원이 100곳 넘게 모인 동. 통설이 없으니 설명을 달지 않는다.
+    {"id": "dasan", "name": "다산 학원가", "dongs": ["경기/남양주시/다산동"], "kind": "data",
+     "lore": "", "from_gu": [], "from_dong": []},
+    {"id": "dongtan", "name": "동탄 반송동 학원가", "dongs": ["경기/화성시/반송동"], "kind": "data",
+     "lore": "", "from_gu": [], "from_dong": []},
+    {"id": "bucheon", "name": "부천 중동·상동 학원가", "dongs": ["경기/부천시/중동", "경기/부천시/상동"], "kind": "data",
+     "lore": "", "from_gu": [], "from_dong": []},
 ]
 
 
@@ -87,7 +95,8 @@ def main() -> None:
         c = center(hub_pts[h["id"]])
         hubs.append({"id": h["id"], "name": h["name"], "lat": round(c[0], 5), "lng": round(c[1], 5),
                      "dongs": h["dongs"], "eng": sum(eng.get(k, 0) for k in h["dongs"]),
-                     "lore": h["lore"], "from_gu": h["from_gu"], "from_dong": h["from_dong"]})
+                     "lore": h["lore"], "from_gu": h["from_gu"], "from_dong": h["from_dong"],
+                     "kind": h.get("kind", "doc")})
 
     def nearest(pos):
         ds = sorted((km(pos, (h["lat"], h["lng"])), h["id"]) for h in hubs)

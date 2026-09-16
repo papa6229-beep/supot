@@ -543,3 +543,6 @@ body.blank-mode .meta .legend{visibility:hidden}
 .msec.hub .hlore p{margin:4px 0; font-size:14.5px; line-height:1.6; color:var(--ink)}
 .msec.hub .hlore .lk{color:#7a5a1a; font-weight:600}
 @media (max-width:700px){ .msec.hub .hrow{flex-wrap:wrap} .msec.hub .hk{width:100%} }
+.msec.hub .hdata{margin:4px 0 2px; font-size:14px; color:var(--ink-2)}
+.msec.hub .tag.data{display:inline-block; font-size:12px; font-weight:800; color:#1f5fae; background:#e3edfa;
+  border-radius:5px; padding:1px 7px; margin-right:6px}
