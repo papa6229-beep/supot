@@ -21,8 +21,8 @@ COORDS = ROOT / "data/geo/coords.csv"
 OUT_DIR = ROOT / "web/data/places"
 
 sys.path.insert(0, str(ROOT / "build"))
-from prep import (BASE_YM, UNKNOWN_DONG, known_dongs, load_academies,  # noqa: E402
-                  load_dongmap, load_schools)
+from prep import (BASE_YM, UNKNOWN_DONG, fee_values, known_dongs,  # noqa: E402
+                  load_academies, load_dongmap, load_schools)
 
 SAFE = re.compile(r"[^0-9A-Za-z가-힣]+")
 
@@ -54,14 +54,27 @@ def main() -> None:
         else ("영어+타 과목" if r["복합"] else "영어 전문"), axis=1)
     eng["표시명"] = eng["학원명"]
     eng["연도"] = eng["개설연도"]
+    # 뭘 가르치는지. 비어 있는 곳이 많아 있는 것만 담는다.
+    eng["과정"] = eng["교습과정목록명"].fillna("").str.strip().str.slice(0, 60)
+    # 과목별 수강료의 가운데값 하나만 담는다. 공개한 곳이 전체의 21%뿐이다.
+    eng["수강료"] = eng["인당수강료"].map(
+        lambda t: int(pd.Series(fee_values(t)).median()) if fee_values(t) else None)
 
     sch = sch.copy()
     sch["종류"] = "학교"
     sch["세부"] = sch["학교종류명"]
     sch["표시명"] = sch["학교명"]
     sch["연도"] = pd.to_numeric(sch["설립일자"].str.slice(0, 4), errors="coerce")
+    sch["설립"] = sch["설립명"].fillna("").str.strip()
+    sch["공학"] = sch["남녀공학구분명"].fillna("").str.strip()
 
-    cols = ["시도", "구시", "동", "종류", "세부", "표시명", "연도", "도로명주소"]
+    eng["설립"] = ""
+    eng["공학"] = ""
+    sch["과정"] = ""
+    sch["수강료"] = None
+
+    cols = ["시도", "구시", "동", "종류", "세부", "표시명", "연도", "도로명주소",
+            "과정", "수강료", "설립", "공학"]
     places = pd.concat([eng[cols], sch[cols]], ignore_index=True)
     places = places[places["동"] != UNKNOWN_DONG]
 
@@ -77,13 +90,22 @@ def main() -> None:
     index = {}
     for (sido, gusi, dong), g in places.groupby(["시도", "구시", "동"], sort=False):
         name = slug(sido, gusi, dong)
-        items = [{
-            "n": r.표시명,
-            "t": "s" if r.종류 == "학교" else "a",   # school / academy
-            "k": r.세부,
-            "y": int(r.연도) if pd.notna(r.연도) else None,
-            "lat": r.lat, "lng": r.lng,
-        } for r in g.itertuples()]
+        items = []
+        for r in g.itertuples():
+            it = {
+                "n": r.표시명,
+                "t": "s" if r.종류 == "학교" else "a",   # school / academy
+                "k": r.세부,
+                "y": int(r.연도) if pd.notna(r.연도) else None,
+                "lat": r.lat, "lng": r.lng,
+            }
+            if r.종류 == "학교":
+                if r.설립: it["e"] = r.설립          # 공립 / 사립
+                if r.공학: it["g"] = r.공학          # 남녀공학 / 남 / 여
+            else:
+                if r.과정: it["c"] = r.과정          # 교습과정
+                if pd.notna(r.수강료) and r.수강료: it["f"] = int(r.수강료)
+            items.append(it)
         (OUT_DIR / f"{name}.json").write_text(
             json.dumps({"sido": sido, "gusi": gusi, "dong": dong, "items": items},
                        ensure_ascii=False, separators=(",", ":")),

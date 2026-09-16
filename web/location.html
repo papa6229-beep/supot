@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 — supot</title>
-<link rel="stylesheet" href="styles.css?v=5">
+<link rel="stylesheet" href="styles.css?v=6">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -106,7 +106,7 @@ const METRICS = [
   {k:'pop_mid',       g:'인구', l:'중학생 나이 인구',        u:'명', sub:true, d:'만 12~14세 인구입니다.'},
 ];
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '5';
+const V = '6';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -289,6 +289,45 @@ function loadKakao(){
   });
 }
 
+const SCHOOL_RADIUS = 700;   // 도보 10분 남짓. 학교 반경 원과 같은 값.
+
+function metersBetween(a, b){
+  // 동네 범위라 평면으로 봐도 오차가 무시할 만하다.
+  const dLat = (a.lat - b.lat) * 111_320;
+  const dLng = (a.lng - b.lng) * 111_320 * Math.cos(a.lat * Math.PI / 180);
+  return Math.round(Math.hypot(dLat, dLng));
+}
+
+/** 핀을 눌렀을 때 뜨는 말풍선 내용 */
+function cardFor(p, all){
+  const line = [];
+  if (p.t === 's'){
+    line.push([p.k, p.e, p.g && p.g !== '남여공학' ? p.g + '학교' : null]
+              .filter(Boolean).join(' · '));
+    const near = all.filter(x => x.t === 'a' && metersBetween(p, x) <= SCHOOL_RADIUS);
+    if (near.length){
+      const by = k => near.filter(x => x.k === k).length;
+      line.push('<u>반경 ' + SCHOOL_RADIUS + 'm 안 영어학원 ' + near.length + '곳</u>');
+      line.push([['영어 전문', by('영어 전문')], ['영어+타 과목', by('영어+타 과목')],
+                 ['교습소', by('교습소')]]
+                .filter(([, n]) => n).map(([k, n]) => k + ' ' + n).join(' · '));
+    } else {
+      line.push('<u>반경 ' + SCHOOL_RADIUS + 'm 안에 영어학원이 없습니다</u>');
+    }
+  } else {
+    const age = p.y ? (new Date().getFullYear() - p.y + 1) : null;
+    line.push([p.k, age ? age + '년차' : null].filter(Boolean).join(' · '));
+    if (p.c) line.push(p.c);
+    if (p.f) line.push('월 ' + Math.round(p.f / 10000) + '만원 <small>(신고 공개분)</small>');
+    const schools = all.filter(x => x.t === 's')
+      .map(x => ({n: x.n, d: metersBetween(p, x)}))
+      .sort((a, b) => a.d - b.d).slice(0, 2);
+    if (schools.length)
+      line.push('가까운 학교 ' + schools.map(x => x.n.replace(/^서울|초등학교$|학교$/g, m => m === '서울' ? '' : (m === '초등학교' ? '초' : '')) + ' ' + x.d + 'm').join(' · '));
+  }
+  return '<b>' + p.n + '</b>' + line.filter(Boolean).map(t => '<span>' + t + '</span>').join('');
+}
+
 function clearOverlays(){
   for (const o of overlays) o.setMap(null);
   overlays = [];
@@ -341,8 +380,7 @@ function drawMap(row){
         const el = document.createElement('div');
         const shape = !school ? 'a' : (p.k === '중학교' ? 'm' : 'e');
         el.className = 'mk ' + shape;
-        el.innerHTML = '<b>' + p.n + '</b><span>' +
-                       p.k + (p.y ? ' · ' + p.y + '년' : '') + '</span>';
+        el.innerHTML = '<div class="card">' + cardFor(p, pts) + '</div>';
         const mk = new kakao.maps.CustomOverlay({
           position: pos, content: el, yAnchor: 1, clickable: true,
           zIndex: school ? 3 : 2,

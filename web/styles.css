@@ -229,17 +229,21 @@ select.add-col{
   width:15px; height:15px; margin-left:-7.5px; background:#1f4f7a;
   border-radius:3px; transform:rotate(45deg);
 }
-.mk b, .mk span{display:none}
+.mk .card{display:none}
 .mk.open{z-index:9}
-.mk.open b{display:block; background:#fff; border:1px solid var(--line-2); border-radius:7px;
-           padding:7px 11px 4px; font-size:13px; font-weight:600; box-shadow:0 3px 10px rgba(0,0,0,.18);
-           transform:translate(-50%,-10px)}
-.mk.open span{display:block; background:#fff; border:1px solid var(--line-2); border-top:0;
-              border-radius:0 0 7px 7px; padding:0 11px 7px; font-size:12px; color:var(--ink-3);
-              box-shadow:0 3px 10px rgba(0,0,0,.18); transform:translate(-50%,-10px)}
-.mk.open.e b{color:#2b6698}
-.mk.open.m b{color:#1f4f7a}
-.mk.open.a b{color:#b8631f}
+.mk.open .card{
+  display:block; position:absolute; left:50%; bottom:22px; transform:translateX(-50%);
+  background:#fff; border:1px solid var(--line-2); border-radius:9px;
+  padding:9px 12px 10px; min-width:170px; max-width:260px;
+  box-shadow:0 4px 14px rgba(0,0,0,.2); white-space:normal; text-align:left;
+}
+.mk.open .card b{display:block; font-size:13.5px; font-weight:600; line-height:1.4}
+.mk.open .card span{display:block; font-size:12px; color:var(--ink-3); line-height:1.55; margin-top:3px}
+.mk.open .card u{text-decoration:none; color:var(--ink); font-weight:600}
+.mk.open .card small{color:var(--ink-4)}
+.mk.open.e .card b{color:#2b6698}
+.mk.open.m .card b{color:#1f4f7a}
+.mk.open.a .card b{color:#b8631f}
 
 .maplegend .pin.e{background:#3f86c4; border-radius:2px}
 .maplegend .pin.m{background:#1f4f7a; border-radius:2px; transform:rotate(45deg)}
