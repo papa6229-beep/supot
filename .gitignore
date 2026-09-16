@@ -7,3 +7,6 @@ data/raw/school_*.csv
 __pycache__/
 *.pyc
 .venv/
+
+# 작업용 임시 폴더
+.tmp/

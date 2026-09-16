@@ -7,90 +7,113 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<div class="app">
 
-<header class="bar">
-  <div class="wrap">
-    <a class="back" href="index.html">← 메뉴</a>
-    <h2>입지 · 상권</h2>
-    <span class="sub" id="basis"></span>
-  </div>
-</header>
+  <aside class="side">
+    <a class="home-link" href="index.html">← 메뉴</a>
+    <h1>입지 · 상권</h1>
+    <p class="where" id="basis"></p>
 
-<main class="wrap">
-
-  <section class="panel">
-    <div class="pick">
-      <label for="selA">무엇을 볼까요 <span class="hint">— 이 지표로 순위를 매깁니다</span></label>
-      <select id="selA"></select>
+    <div class="field">
+      <label for="selA">무엇으로 순위를 매길까요</label>
+      <select class="pick" id="selA"></select>
     </div>
 
-    <div class="pick compare">
-      <label>나란히 비교할 것 <span class="hint">— 최대 4개까지 붙일 수 있습니다</span></label>
+    <div class="field">
+      <span class="lbl">나란히 비교할 것</span>
       <div class="cols" id="cols"></div>
+    </div>
+
+    <div class="field">
+      <span class="lbl">단위</span>
+      <div class="seg" id="unit"></div>
+    </div>
+
+    <div class="field">
+      <span class="lbl">지역</span>
+      <div class="seg" id="region"></div>
+    </div>
+
+    <div class="field">
+      <span class="lbl">정렬</span>
+      <div class="seg" id="order"></div>
+    </div>
+
+    <div class="field">
+      <span class="lbl">0곳인 지역</span>
+      <div class="seg" id="zero"></div>
+    </div>
+
+    <div class="field">
+      <label for="q">지역 이름 검색</label>
+      <input class="search" id="q" type="search" placeholder="예: 대치동" autocomplete="off">
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <h2 id="title"></h2>
+      <span class="basis">2026년 8월 기준 · 서울 + 경기</span>
     </div>
 
     <div class="explain" id="explain"></div>
 
-    <div class="opts">
-      <div class="grp"><span>단위</span><div class="chips" id="unit"></div></div>
-      <div class="grp"><span>지역</span><div class="chips" id="region"></div></div>
-      <div class="grp"><span>정렬</span><div class="chips" id="order"></div></div>
-      <div class="grp"><div class="chips" id="zero"></div></div>
-      <input class="search" id="q" type="search" placeholder="지역 이름 검색" autocomplete="off">
+    <div class="meta">
+      <span id="count"></span>
+      <span id="sum"></span>
+      <span class="legend"><i></i>중앙값</span>
     </div>
-  </section>
 
-  <div class="meta">
-    <span class="n" id="count"></span>
-    <span class="n" id="sum"></span>
-    <span class="legend"><i></i>중앙값</span>
-  </div>
+    <section class="rows" id="rows"></section>
+    <div class="pager" id="pager"></div>
 
-  <section class="rows" id="rows"></section>
+    <section class="detail" id="detail"></section>
 
-  <p class="note" id="note"></p>
-</main>
+    <p class="note" id="note"></p>
+  </main>
+</div>
 
 <script>
 const METRICS = [
   {k:'eng_total',     g:'학원', l:'영어 학원 수',          u:'곳',
    d:'영어를 가르치는 <b>학원과 교습소를 합한 수</b>입니다.'},
   {k:'eng_academy',   g:'학원', l:'영어 학원 (전문+복합)',  u:'곳',
-   d:'등록제 · 한 번에 <b>10명 이상</b> · 여러 과목 가능 · 강사 고용 가능. 규모를 키울 수 있는 형태입니다.'},
-  {k:'eng_solo',      g:'학원', l:'└ 영어 전문학원',        u:'곳',
-   d:'영어 <b>하나만</b> 가르치는 학원입니다. 같은 단일 과목으로 붙는 <b>가장 직접적인 경쟁자</b>입니다.'},
-  {k:'eng_combo',     g:'학원', l:'└ 영어+타 과목 학원',     u:'곳',
-   d:'「○○영어수학학원」처럼 영어와 다른 과목을 <b>같이</b> 가르치는 곳입니다.'},
+   d:'등록제 · 한 번에 <b>10명 이상</b> · 여러 과목 가능 · 강사 고용 가능.'},
+  {k:'eng_solo',      g:'학원', l:'└ 영어 전문학원',        u:'곳', sub:true,
+   d:'영어 <b>하나만</b> 가르치는 학원입니다. 가장 직접적인 경쟁자입니다.'},
+  {k:'eng_combo',     g:'학원', l:'└ 영어+타 과목 학원',     u:'곳', sub:true,
+   d:'「○○영어수학학원」처럼 영어와 다른 과목을 같이 가르치는 곳입니다.'},
   {k:'eng_institute', g:'학원', l:'영어 교습소',            u:'곳',
-   d:'신고제 · 한 번에 <b>9명 이하</b> · <b>1과목만</b> · 강사 고용 불가. 혼자 운영하는 형태라 공부방에 가장 가깝습니다.'},
+   d:'신고제 · 한 번에 <b>9명 이하</b> · <b>1과목만</b> · 강사 고용 불가. 공부방에 가장 가깝습니다.'},
   {k:'eng_new3y',     g:'학원', l:'최근 3년에 생긴 곳',      u:'곳',
-   d:'<b>2023년 이후</b> 문을 연 영어학원 수입니다. 그 동네가 지금 커지는 중인지 보는 지표입니다.'},
+   d:'<b>2023년 이후</b> 문을 연 영어학원 수입니다. 지금 커지는 중인지 보는 지표입니다.'},
   {k:'all_total',     g:'학원', l:'전 과목 학원 수',         u:'곳',
    d:'영어뿐 아니라 <b>모든 과목</b>의 학원과 교습소를 합한 수입니다.'},
   {k:'fee_median',    g:'학원', l:'월 수강료 (중간값)',      u:'원', partial:true,
-   d:'영어학원 월 수강료의 중간값입니다. <span class="warn">수강료를 공개한 곳만 집계돼 전체의 약 21%뿐입니다.</span>'},
+   d:'영어학원 월 수강료의 중간값입니다. <span class="warn">공개한 곳만 집계돼 전체의 약 21%뿐입니다.</span>'},
   {k:'sch_total',     g:'학교', l:'초 · 중학교 수',         u:'곳',
-   d:'초등학교와 중학교를 합한 수입니다. <b>학원의 잠재 고객이 나오는 곳</b>입니다.'},
-  {k:'sch_elem',      g:'학교', l:'초등학교 수',            u:'곳', d:'초등학교 수입니다.'},
-  {k:'sch_mid',       g:'학교', l:'중학교 수',              u:'곳',
+   d:'초등학교와 중학교를 합한 수입니다.'},
+  {k:'sch_elem',      g:'학교', l:'초등학교 수',            u:'곳', sub:true, d:'초등학교 수입니다.'},
+  {k:'sch_mid',       g:'학교', l:'중학교 수',              u:'곳', sub:true,
    d:'중학교 수입니다. 내신 대비 수요가 여기서 나옵니다.'},
-  {k:'pop_target',    g:'인구', l:'초4~중3 인구',           u:'명', guOnly:true,
-   d:'그 지역에 <b>사는</b> 만 9~14세 인구입니다. 초등 고학년부터 중3까지 — <b>이번 사업의 대상</b>입니다.'},
-  {k:'pop_elem',      g:'인구', l:'초등학생 나이 인구',      u:'명', guOnly:true, d:'만 6~11세 인구입니다.'},
-  {k:'pop_mid',       g:'인구', l:'중학생 나이 인구',        u:'명', guOnly:true, d:'만 12~14세 인구입니다.'},
+  {k:'pop_target',    g:'인구', l:'초4~중3 인구',           u:'명',
+   d:'그 지역에 <b>사는</b> 만 9~14세 인구입니다. <b>이번 사업의 대상</b>입니다.'},
+  {k:'pop_elem',      g:'인구', l:'초등학생 나이 인구',      u:'명', sub:true, d:'만 6~11세 인구입니다.'},
+  {k:'pop_mid',       g:'인구', l:'중학생 나이 인구',        u:'명', sub:true, d:'만 12~14세 인구입니다.'},
 ];
-const PAGE = 40;
+const PER_PAGE = 10;
 const MAX_COLS = 4;
+const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
 const UNKNOWN_DONG = '(동 미상)';
-const state = {a:'eng_total', cols:['sch_total'], unit:'zone', region:'all',
-               desc:true, q:'', shown:PAGE, hideZero:true};
+
+const state = {a:'eng_total', cols:['pop_target', 'sch_total'], unit:'dong', region:'all',
+               desc:true, q:'', page:0, hideZero:true, picked:null, tab:'summary'};
 let DATA = null;
 
 const fmt = n => (n === null || n === undefined) ? '—' : n.toLocaleString('ko-KR');
 const metric = k => METRICS.find(m => m.k === k);
-// 인구는 행정동 기준이라 법정동과 이름이 맞지 않아 구·시 단위까지만 있다.
-const unavailable = m => !!(m && m.guOnly && state.unit === 'dong');
-const UNIT_LABEL = {gu:'구 · 시', dong:'법정동', zone:'동 묶음'};
+const barColor = i => BAR_COLORS[i % BAR_COLORS.length];
+const keyOf = r => r.sido + '/' + (r.parent || '') + '/' + r.name;
 
 function fillSelect(el, items, selected, placeholder){
   let html = placeholder ? '<option value="">' + placeholder + '</option>' : '';
@@ -107,28 +130,26 @@ function fillSelect(el, items, selected, placeholder){
   el.innerHTML = html;
 }
 
-function chips(host, items, get, set){
+function segment(host, items, get, set){
   host.innerHTML = '';
   for (const it of items){
     const b = document.createElement('button');
-    b.className = 'chip'; b.type = 'button'; b.textContent = it.l;
+    b.type = 'button'; b.textContent = it.l;
     b.setAttribute('aria-pressed', String(get() === it.k));
-    b.onclick = () => { set(it.k); state.shown = PAGE; render(); };
+    b.onclick = () => { set(it.k); state.page = 0; render(); };
     host.appendChild(b);
   }
 }
 
-/** 비교 열 목록 + 추가 드롭다운 */
 function renderCols(){
   cols.innerHTML = '';
   state.cols.forEach((k, i) => {
-    const m = metric(k);
-    const tag = document.createElement('span');
-    tag.className = 'col-tag' + (unavailable(m) ? ' off' : '');
-    tag.innerHTML = '<i class="swatch" style="background:' + barColor(i + 1) + '"></i>' + m.l;
+    const tag = document.createElement('div');
+    tag.className = 'col-tag';
+    tag.innerHTML = '<i class="swatch" style="background:' + barColor(i + 1) + '"></i>' +
+                    '<span>' + metric(k).l + '</span>';
     const x = document.createElement('button');
-    x.type = 'button'; x.className = 'x'; x.textContent = '×';
-    x.title = '이 열 빼기';
+    x.type = 'button'; x.className = 'x'; x.textContent = '×'; x.title = '이 열 빼기';
     x.onclick = () => { state.cols.splice(i, 1); render(); };
     tag.appendChild(x);
     cols.appendChild(tag);
@@ -140,19 +161,11 @@ function renderCols(){
     const used = new Set([state.a, ...state.cols]);
     fillSelect(add, METRICS.filter(m => !used.has(m.k)), '', '+ 지표 추가');
     add.onchange = e => {
-      if (e.target.value){ state.cols.push(e.target.value); state.shown = PAGE; render(); }
+      if (e.target.value){ state.cols.push(e.target.value); render(); }
     };
     cols.appendChild(add);
-  } else {
-    const msg = document.createElement('span');
-    msg.className = 'col-max';
-    msg.textContent = '최대 ' + MAX_COLS + '개';
-    cols.appendChild(msg);
   }
 }
-
-const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
-const barColor = i => BAR_COLORS[i % BAR_COLORS.length];
 
 function median(values){
   const v = values.filter(x => x !== null && x !== undefined).sort((a, b) => a - b);
@@ -175,14 +188,61 @@ function rowsFor(){
   return list;
 }
 
-function cell(value, max, med, color){
+function cell(value, max, med, color, lead){
   // 막대 오른쪽에 값 라벨이 들어갈 자리를 남겨둔다
   const pct = v => Math.max(0.8, ((v || 0) / max) * 84);
   const line = med === null ? '' : '<span class="med" style="left:' + pct(med) + '%"></span>';
   return '<div class="cell">' +
-           '<div class="track"><span class="fill" style="width:' + pct(value) + '%;background:' + color + '"></span>' + line + '</div>' +
+           '<div class="track"><span class="fill" style="width:' + pct(value) +
+           '%;background:' + color + '"></span>' + line + '</div>' +
            '<span class="val">' + fmt(value) + '</span>' +
          '</div>';
+}
+
+function renderDetail(list){
+  const row = list.find(r => keyOf(r) === state.picked) || list[0];
+  if (!row){ detail.innerHTML = ''; return; }
+  state.picked = keyOf(row);
+
+  // 이 지역이 전체에서 몇 번째인지 — 지표마다 따로 센다.
+  const rankOf = k => {
+    const v = row[k];
+    if (v === null || v === undefined) return null;
+    return list.filter(r => (r[k] ?? -1) > v).length + 1;
+  };
+
+  const groups = ['학원', '학교', '인구'].map(g => {
+    const rows = METRICS.filter(m => m.g === g).map(m => {
+      const rank = rankOf(m.k);
+      return '<div class="stat' + (m.sub ? ' sub' : '') + '">' +
+               '<span class="k">' + m.l + '</span>' +
+               '<span class="v">' + fmt(row[m.k]) + '</span>' +
+               '<span class="r">' + (rank ? rank + '위' : '') + '</span>' +
+             '</div>';
+    }).join('');
+    return '<div><p class="grp-title">' + g + '</p>' + rows + '</div>';
+  }).join('');
+
+  // 나눗셈 한 번. 점수를 매기는 게 아니라 규모를 맞춰 비교하는 것이다.
+  const per = r => (r.pop_target ? r.eng_total / r.pop_target * 1000 : null);
+  const mine = per(row);
+  const mid = median(list.map(per));
+  const derived = mine === null ? '' :
+    '<div class="derived">아이 1천 명당 영어학원 <b>' + mine.toFixed(1) + '곳</b>' +
+    (mid !== null ? ' · 이 목록의 중앙값은 <b>' + mid.toFixed(1) + '곳</b>' : '') +
+    '<br>영어학원 수를 초4~중3 인구로 나눈 값입니다. 지역 크기가 달라도 견줄 수 있게 한 것이지, 좋고 나쁨을 매긴 점수가 아닙니다.</div>';
+
+  const tab = (k, label, on) =>
+    '<button type="button" data-tab="' + k + '"' + (on ? '' : ' disabled') +
+    ' aria-selected="' + (state.tab === k) + '">' + label + '</button>';
+
+  detail.innerHTML =
+    '<div class="dhead"><h3>' + row.name + '</h3>' +
+      (row.parent ? '<span class="p">' + row.parent + '</span>' : '') +
+      '<span class="lead">영어학원 <b>' + fmt(row.eng_total) + '</b>곳</span></div>' +
+    '<div class="tabs">' + tab('summary', '요약', true) +
+      tab('list', '학원 목록', false) + tab('map', '지도', false) + '</div>' +
+    '<div class="dbody"><div class="groups">' + groups + '</div>' + derived + '</div>';
 }
 
 function render(){
@@ -190,34 +250,29 @@ function render(){
   fillSelect(selA, METRICS, state.a);
   renderCols();
 
-  const shown = state.cols.map(metric).filter(m => !unavailable(m));
-  const blocked = [mA, ...state.cols.map(metric)].filter(unavailable);
+  segment(unit,   [{k:'gu', l:'구 · 시'}, {k:'dong', l:'동'}], () => state.unit, k => state.unit = k);
+  segment(region, [{k:'all', l:'서울+경기'}, {k:'서울', l:'서울'}, {k:'경기', l:'경기'}],
+          () => state.region, k => state.region = k);
+  segment(order,  [{k:'desc', l:'많은 순'}, {k:'asc', l:'적은 순'}],
+          () => state.desc ? 'desc' : 'asc', k => state.desc = (k === 'desc'));
+  segment(zero,   [{k:'hide', l:'빼기'}, {k:'show', l:'넣기'}],
+          () => state.hideZero ? 'hide' : 'show', k => state.hideZero = (k === 'hide'));
 
-  explain.innerHTML =
-    (blocked.length
-      ? '<div class="alert">「' + blocked.map(m => m.l).join('」 「') + '」은(는) <b>구 · 시 단위만</b> 있어 ' +
-        '법정동 단위에서는 표시되지 않습니다. 인구는 행정동(상계1동) 기준이고 학원 주소는 법정동(상계동) 기준이라 ' +
-        '서로 쪼갤 수가 없습니다. <b>「동 묶음」</b>으로 보시면 인구까지 함께 볼 수 있습니다.' +
-        '<button type="button" id="toGuTop">동 묶음으로 보기</button></div>'
-      : '') +
-    [mA, ...shown].map(m => '<b>' + m.l + '</b> — ' + m.d).join('<br>');
-
-  chips(unit,   [{k:'gu', l:'구 · 시'}, {k:'zone', l:'동 묶음'}, {k:'dong', l:'법정동'}],
-        () => state.unit, k => state.unit = k);
-  chips(region, [{k:'all', l:'서울+경기'}, {k:'서울', l:'서울'}, {k:'경기', l:'경기'}],
-        () => state.region, k => state.region = k);
-  chips(order,  [{k:'desc', l:'많은 순'}, {k:'asc', l:'적은 순'}],
-        () => state.desc ? 'desc' : 'asc', k => state.desc = (k === 'desc'));
-  chips(zero,   [{k:'hide', l:'0곳 제외'}, {k:'show', l:'0곳 포함'}],
-        () => state.hideZero ? 'hide' : 'show', k => state.hideZero = (k === 'hide'));
+  const shown = state.cols.map(metric);
+  const columns = [mA, ...shown];
+  title.textContent = mA.l + (state.desc ? ' 많은 순' : ' 적은 순');
+  explain.innerHTML = columns.map(m => '<b>' + m.l + '</b> — ' + m.d).join('<br>');
 
   const list = rowsFor();
-  const columns = [mA, ...shown];
   const stats = columns.map(m => ({
     m,
     max: Math.max(1, ...list.map(r => r[m.k] || 0)),
     med: median(list.map(r => r[m.k])),
   }));
+
+  const pages = Math.max(1, Math.ceil(list.length / PER_PAGE));
+  if (state.page >= pages) state.page = 0;
+  const slice = list.slice(state.page * PER_PAGE, (state.page + 1) * PER_PAGE);
 
   count.innerHTML = '지역 <b>' + fmt(list.length) + '</b>개';
   const medA = stats[0].med;
@@ -227,48 +282,43 @@ function render(){
       (medA !== null ? ' · 중앙값 <b>' + fmt(medA) + '</b>' + mA.u : '');
 
   rows.style.setProperty('--cols', columns.length);
-  const slice = list.slice(0, state.shown);
-
   let html = '<div class="head"><span>지역</span>' +
-             stats.map((s, i) =>
-               '<span><i class="swatch" style="background:' + barColor(i) + '"></i>' +
-               '<b>' + s.m.l + '</b> ' + s.m.u + '</span>').join('') +
-             '</div>';
+             stats.map((s, i) => '<span><i class="swatch" style="background:' + barColor(i) + '"></i>' +
+                                 '<b>' + s.m.l + '</b> ' + s.m.u + '</span>').join('') + '</div>';
 
-  if (unavailable(mA)){
-    html += '<div class="none">위 지표는 법정동 단위에서는 볼 수 없습니다. 「동 묶음」 또는 「구 · 시」로 보세요.</div>';
-  } else if (!slice.length){
-    html += '<div class="none">해당하는 지역이 없습니다.</div>';
+  if (!slice.length){
+    html += '<div class="none">해당하는 지역이 없습니다.<br>검색어를 지우거나 지역 범위를 넓혀보세요.</div>';
   } else {
     slice.forEach((r, i) => {
       const where = r.parent ? '<span class="p">' + r.parent + '</span>' : '';
-      html += '<div class="row">' +
-                '<div class="nm"><span class="rank">' + (i + 1) + '</span>' + r.name + where + '</div>' +
+      html += '<div class="row" data-key="' + keyOf(r) + '" aria-selected="' + (keyOf(r) === state.picked) + '">' +
+                '<div class="nm"><span class="rank">' + (state.page * PER_PAGE + i + 1) + '</span>' +
+                r.name + where + '</div>' +
                 stats.map((s, ci) => cell(r[s.m.k], s.max, s.med, barColor(ci))).join('') +
               '</div>';
     });
-    if (list.length > state.shown)
-      html += '<button class="more" id="more">' + fmt(list.length - state.shown) + '개 더 보기</button>';
   }
   rows.innerHTML = html;
+  for (const el of rows.querySelectorAll('.row'))
+    el.onclick = () => { state.picked = el.dataset.key; render(); };
 
-  const more = document.getElementById('more');
-  if (more) more.onclick = () => { state.shown += PAGE * 2; render(); };
-  const toGuTop = document.getElementById('toGuTop');
-  if (toGuTop) toGuTop.onclick = () => { state.unit = 'zone'; state.shown = PAGE; render(); };
+  pager.innerHTML = list.length <= PER_PAGE ? '' :
+    '<button type="button" id="prev"' + (state.page === 0 ? ' disabled' : '') + '>‹ 이전</button>' +
+    '<span class="at">' + (state.page + 1) + ' / ' + pages + '</span>' +
+    '<button type="button" id="next"' + (state.page >= pages - 1 ? ' disabled' : '') + '>다음 ›</button>';
+  const prev = document.getElementById('prev'), next = document.getElementById('next');
+  if (prev) prev.onclick = () => { state.page--; render(); };
+  if (next) next.onclick = () => { state.page++; render(); };
+
+  renderDetail(list);
 
   const notes = [];
   if (state.hideZero)
-    notes.push('순위 지표가 <b>0인 지역은 빼고</b> 셌습니다. 0곳인 동까지 넣으면 중앙값이 1 근처로 내려가 기준선 구실을 못 합니다.');
+    notes.push('순위 지표가 <b>0인 지역은 빼고</b> 셌습니다. 왼쪽에서 넣을 수 있습니다.');
   if (state.unit === 'dong')
-    notes.push('<b>법정동</b>은 학원 주소에 적힌 동입니다. 학원·학교는 정확하지만 인구는 붙지 않습니다. ' +
-               '주소에 동이 없는 ' + fmt(DATA.counts.rows - DATA.counts.dong_parsed) + '건은 목록에서 뺐습니다.');
-  if (state.unit === 'zone')
-    notes.push('<b>동 묶음</b>은 행정동과 법정동이 서로 걸치는 만큼 묶은 단위입니다. ' +
-               '상계1~10동이 모두 상계동을 덮으면 「상계동」 하나가 되고, 청운효자동처럼 법정동 여러 개에 ' +
-               '걸치면 그것들이 한 묶음이 됩니다. <b>이렇게 해야 인구와 학원이 어느 쪽으로도 새지 않습니다.</b> ' +
-               '묶음마다 크기가 고르지 않은 건 행정구역 자체가 그렇기 때문입니다. ' +
-               '주소를 못 맞춘 영어학원 ' + fmt(DATA.counts.zone_lost_eng) + '곳(4.5%)은 빠져 있습니다.');
+    notes.push('동은 <b>법정동</b>입니다. 주소에 동이 없는 학원 ' +
+               fmt(DATA.counts.rows - DATA.counts.dong_parsed) + '건은 목록에서 뺐고, ' +
+               '인구가 붙지 않은 동도 일부 있습니다(영어학원 기준 4.7%).');
   notes.push('영어 여부는 학원명·교습과정·수강료 내역으로 판별했습니다. 완전하지 않습니다.');
   note.innerHTML = notes.join('<br>');
 }
@@ -276,17 +326,17 @@ function render(){
 selA.onchange = e => {
   state.a = e.target.value;
   state.cols = state.cols.filter(k => k !== state.a);
-  state.shown = PAGE;
+  state.page = 0;
   render();
 };
-q.oninput = e => { state.q = e.target.value; state.shown = PAGE; render(); };
+q.oninput = e => { state.q = e.target.value; state.page = 0; render(); };
 
 fetch('data/regions.json')
   .then(r => r.json())
   .then(d => {
     DATA = d;
-    basis.textContent = d.base_ym + ' 기준 · 영어학원 ' + fmt(d.counts.english) +
-                        '곳 · 초중학교 ' + fmt(d.counts.schools) + '개교';
+    basis.textContent = '영어학원 ' + fmt(d.counts.english) + '곳 · 초중학교 ' +
+                        fmt(d.counts.schools) + '개교';
     render();
   })
   .catch(() => { rows.innerHTML = '<div class="none">데이터를 불러오지 못했습니다.</div>'; });

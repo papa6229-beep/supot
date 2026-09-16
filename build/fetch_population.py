@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
-"""행정안전부 주민등록 인구통계에서 행정동별 1세 단위 인구를 받아 한 파일로 합친다.
+"""행정안전부 주민등록 인구통계에서 법정동별 1세 단위 인구를 받아 한 파일로 합친다.
 
-jumin.mois.go.kr 은 시·군·구를 하나씩 지정해야 그 아래 행정동 목록을 준다.
-그래서 서울 25 + 경기 31 = 56회를 돌려 이어붙인다.
+학원·학교 주소가 법정동 기준이라 인구도 법정동 기준으로 받아야 그대로 맞물린다.
+(행정동별 통계는 '상계1~10동'처럼 쪼개져 있어 주소와 맞지 않는다.)
+
+시·군·구를 하나씩 지정해야 그 아래 법정동 목록을 주므로
+서울 25 + 경기 31 = 56회를 돌려 이어붙인다. 각 응답의 첫 행은 시·군·구 합계다.
 
 출력: data/raw/pop_2026-08.csv  (UTF-8)
 """
@@ -16,7 +19,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data/raw/pop_2026-08.csv"
-ENDPOINT = "https://jumin.mois.go.kr/downloadCsvAge.do?searchYearMonth=month&xlsStats=1"
+ENDPOINT = ("https://jumin.mois.go.kr/agePpltStusDown.do"
+            "?searchYearMonth=month&xlsStats=1&downType=Csv")
 YEAR, MONTH = "2026", "08"
 AGE_FROM, AGE_TO = 0, 19          # 초·중학생을 덮는 범위
 
@@ -40,23 +44,21 @@ SIGUNGU = {
 
 def fetch(sido: str, sigungu: str) -> str:
     body = urllib.parse.urlencode({
-        "sltOrgType": 2,             # 2 = 지정한 시·군·구의 행정동 목록
+        "sttsGbn": "lgdn",           # lgdn = 법정동 기준
         "sltOrgLvl1": sido,
         "sltOrgLvl2": sigungu,
-        "sum": "sum",
-        "sltUndefType": "",
+        "sum": "sum", "gender": "gender", "sltUndefType": "",
         "searchYearStart": YEAR, "searchMonthStart": MONTH,
         "searchYearEnd": YEAR, "searchMonthEnd": MONTH,
-        "sltOrderType": 1, "sltOrderValue": "ASC",
         "sltArgTypes": 1,            # 1세 단위
         "sltArgTypeA": AGE_FROM, "sltArgTypeB": AGE_TO,
-        "category": "month", "state": 1, "stateMobile": 1,
+        "category": "month", "state": 1,
     }).encode()
     req = urllib.request.Request(
         ENDPOINT, data=body,
-        headers={"Referer": "https://jumin.mois.go.kr/ageStatMonth.do",
+        headers={"Referer": "https://jumin.mois.go.kr/agePpltStus.do",
                  "Content-Type": "application/x-www-form-urlencoded"})
-    with urllib.request.urlopen(req, timeout=90) as r:
+    with urllib.request.urlopen(req, timeout=120) as r:
         return r.read().decode("cp949", errors="replace")
 
 
@@ -67,18 +69,16 @@ def main() -> None:
 
     for sido, codes in SIGUNGU.items():
         for code in codes:
-            text = fetch(sido, code)
+            table = list(csv.reader(io.StringIO(fetch(sido, code))))
             done += 1
-            table = list(csv.reader(io.StringIO(text)))
             if len(table) < 2:
                 print(f"  ! 비어 있음: {code}", file=sys.stderr)
                 continue
             if header is None:
                 header = table[0]
-            # 첫 행은 시·군·구 합계라 건너뛰고 행정동만 담는다.
             body = [r for r in table[1:] if r and "(" in r[0]]
-            rows.extend(body[1:] if len(body) > 1 else body)
-            print(f"  [{done}/{total}] {code}  행정동 {max(0, len(body)-1)}개")
+            rows.extend(body)      # 첫 행(시·군·구 합계)도 담는다. 구 단위 집계에 쓴다.
+            print(f"  [{done}/{total}] {code}  {len(body) - 1}개 법정동")
             time.sleep(0.3)
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
@@ -86,7 +86,7 @@ def main() -> None:
         w = csv.writer(f)
         w.writerow(header)
         w.writerows(rows)
-    print(f"\n저장: {OUT.relative_to(ROOT)}  행정동 {len(rows):,}개")
+    print(f"\n저장: {OUT.relative_to(ROOT)}  {len(rows):,}행")
 
 
 if __name__ == "__main__":
