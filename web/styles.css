@@ -357,3 +357,42 @@ body.few-mode .meta .legend{display:none}
   .few .n{font-size:14px; padding-right:2px}
   .few .head small{display:none}
 }
+
+/* 학원 목록 탭 */
+.alist{padding:4px 0 6px}
+.alist .lbar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:6px 0 12px}
+.alist .chips{display:flex; gap:6px; flex-wrap:wrap}
+.alist .chip{display:inline-flex; align-items:center; gap:6px; cursor:pointer;
+  border:1px solid var(--line-2); background:var(--surface); color:var(--ink-2);
+  border-radius:999px; padding:6px 13px 6px 11px; font-size:14px}
+.alist .chip b{color:var(--ink); font-variant-numeric:tabular-nums}
+.alist .chip[aria-pressed="true"]{border-color:var(--ink); background:var(--ink); color:#fff}
+.alist .chip[aria-pressed="true"] b{color:#fff}
+.alist .chip .pin{display:inline-block; box-sizing:border-box; border:1.5px solid #fff; box-shadow:0 0 0 1px rgba(0,0,0,.45)}
+.alist .chip .pin.a1,.alist .chip .pin.a2{width:12px; height:12px; border-radius:50% 50% 50% 0; transform:rotate(-45deg)}
+.alist .chip .pin.a1{background:var(--pin-a1)}
+.alist .chip .pin.a2{background:var(--pin-a2)}
+.alist .chip .pin.a3{width:11px; height:11px; border-radius:50%; background:var(--pin-a3)}
+.alist .lsort{margin-left:auto; font:inherit; font-size:14px; padding:6px 10px;
+  border:1px solid var(--line-2); border-radius:8px; background:var(--surface); color:var(--ink)}
+.alist .ltable{overflow-x:auto; border:1px solid var(--line); border-radius:10px}
+.alist table{width:100%; border-collapse:collapse; font-size:14.5px; min-width:640px}
+.alist th{text-align:left; font-weight:600; font-size:13px; color:var(--ink-3);
+  background:#fbfaf7; padding:10px 12px; border-bottom:1px solid var(--line-2); white-space:nowrap}
+.alist td{padding:11px 12px; border-bottom:1px solid #f0eee9; vertical-align:middle; color:#23272e}
+.alist tbody tr{cursor:pointer}
+.alist tbody tr:hover{background:var(--accent-soft)}
+.alist tbody tr:last-child td{border-bottom:0}
+.alist .an b{font-size:15.5px; font-weight:700; color:var(--ink); margin-right:8px}
+.alist .kd{display:inline-block; font-size:12px; font-weight:700; padding:2px 8px; border-radius:999px; white-space:nowrap}
+.alist .kd.a1{background:#ffe1ee; color:#c4004f}
+.alist .kd.a2{background:#ffe9d4; color:#b85600}
+.alist .kd.a3{background:#fff3c4; color:#8a6a00}
+.alist .ay{white-space:nowrap; font-variant-numeric:tabular-nums}
+.alist .ay small{display:block; font-size:12px; color:var(--ink-3)}
+.alist .af{white-space:nowrap}
+.alist .af b{font-size:16px}
+.alist .as{white-space:nowrap}
+.alist .as small{color:var(--ink-3)}
+.alist .dim{color:var(--ink-4)}
+.alist .lnote{margin:10px 2px 0; font-size:13px; color:var(--ink-3)}
