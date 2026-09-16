@@ -68,6 +68,15 @@ python build/prep_market.py                      # -> web/data/market.json (개�
 이 문서의 동별 내용은 대부분 유형 추정(근거 등급 E2)이고, 같은 유형이면 설명이 똑같다.
 그래서 `market.json`은 설명을 유형에 한 번만 두고, 동에는 유형·등급과 그 동만을 위해 쓴 문장(31곳)만 싣는다.
 
+### 버전 올리기
+
+화면을 고치면 세 군데 숫자를 같이 올린다. 브라우저가 옛 화면을 붙잡고 있으면
+페이지가 `version.json`을 보고 한 번 새로 불러온다.
+
+- `web/version.json` 의 `v`
+- `web/index.html`, `web/location.html` 의 `PAGE_V` 와 `styles.css?v=`
+- `web/location.html` 의 `const V` (자료 파일 캐시용)
+
 ### 보기
 
 ```bash
