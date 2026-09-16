@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 — supot</title>
-<link rel="stylesheet" href="styles.css?v=21">
+<link rel="stylesheet" href="styles.css?v=22">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -82,6 +82,10 @@
 // 전부를 부르는 말이고, 하나는 교습소와 구분되는 법적 종류다. 이름을 갈라 쓰고
 // sub 로 계층을 드러낸다. sub 는 들여쓰기 깊이다.
 const METRICS = [
+  {k:'kids_per_eng',  g:'비교', l:'영어학원 1곳당 아이 수',  u:'명', ratio:true,
+   d:'초4~중3 인구를 영어 학원·교습소 수로 나눈 값입니다. <b>클수록 아이에 비해 학원이 적은 곳</b>입니다. ' +
+     '막대의 세로선(중앙값)보다 길면 보통보다 학원이 적은 편입니다. ' +
+     '학교 재학생이 아니라 그 동네에 <b>사는</b> 아이 기준이고, 영어학원이 한 곳도 없는 곳은 나눌 수 없어 뺐습니다.'},
   {k:'eng_total',     g:'학원', l:'영어 학원·교습소 전체',   u:'곳',
    d:'영어를 가르치는 곳을 <b>모두 합한 수</b>입니다. 아래 학원과 교습소를 더한 값입니다.'},
   {k:'eng_academy',   g:'학원', l:'영어학원',               u:'곳', sub:1,
@@ -110,9 +114,24 @@ const METRICS = [
 ];
 
 // 목록에서만 계층을 보여준다. 그래프 제목이나 열 이름에는 붙이지 않는다.
+// 영어학원이 0곳이면 나눌 수 없다. 그런 곳은 값을 비워두고 따로 센다.
+function addRatios(rows){
+  for (const r of rows)
+    r.kids_per_eng = (r.pop_target != null && r.eng_total > 0)
+      ? Math.round(r.pop_target / r.eng_total) : null;
+}
+
+// 학원 종류: 자료의 값 -> 화면 이름과 핀
+const ACA_KIND = {
+  '영어 전문':    {label: '영어만',          pin: 'a1'},
+  '영어+타 과목': {label: '영어+다른 과목',  pin: 'a2'},
+  '교습소':       {label: '교습소',          pin: 'a3'},
+};
+const kindLabel = k => (ACA_KIND[k] && ACA_KIND[k].label) || k;
+
 const indent = m => m.sub ? '  '.repeat(m.sub) + '└ ' : '';
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '21';
+const V = '22';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -263,7 +282,7 @@ function renderDetail(list){
     return out + '</div>';
   }
 
-  const groups = ['학원', '학교', '인구'].map(g => {
+  const groups = ['비교', '학원', '학교', '인구'].map(g => {
     const rows = METRICS.filter(m => m.g === g).map(m => {
       const rank = rankOf(m.k);
       return '<div class="stat' + (m.sub ? ' sub sub' + m.sub : '') + '">' +
@@ -275,14 +294,16 @@ function renderDetail(list){
     return '<div><p class="grp-title">' + g + '</p>' + rows + '</div>';
   }).join('') + estateBlock();
 
-  // 나눗셈 한 번. 점수를 매기는 게 아니라 규모를 맞춰 비교하는 것이다.
-  const per = r => (r.pop_target ? r.eng_total / r.pop_target * 1000 : null);
-  const mine = per(row);
-  const mid = median(list.map(per));
-  const derived = mine === null ? '' :
-    '<div class="derived">아이 1천 명당 영어학원 <b>' + mine.toFixed(1) + '곳</b>' +
-    (mid !== null ? ' · 이 목록의 중앙값은 <b>' + mid.toFixed(1) + '곳</b>' : '') +
-    '<br>영어학원 수를 초4~중3 인구로 나눈 값입니다. 지역 크기가 달라도 견줄 수 있게 한 것이지, 좋고 나쁨을 매긴 점수가 아닙니다.</div>';
+  // 나눗셈 한 번. 점수가 아니라 이 목록의 가운데 값과 견줄 뿐이다.
+  const mine = row.kids_per_eng;
+  const mid = median(list.map(r => r.kids_per_eng));
+  const derived = mine == null ? '' :
+    '<div class="derived">영어학원 1곳당 아이 <b>' + fmt(mine) + '명</b>' +
+    (mid !== null ? ' · 이 목록의 중앙값 <b>' + fmt(mid) + '명</b><br>' +
+      (mine > mid ? '중앙값보다 많습니다. 아이 수에 비해 <b>학원이 적은 편</b>입니다.'
+                  : mine < mid ? '중앙값보다 적습니다. 아이 수에 비해 <b>학원이 많은 편</b>입니다.'
+                               : '중앙값과 같습니다.') : '') +
+    '</div>';
 
   const tab = (k, label, on) =>
     '<button type="button" data-tab="' + k + '"' + (on ? '' : ' disabled') +
@@ -295,7 +316,8 @@ function renderDetail(list){
          ['영어 전문', 'a1'], ['영어+타 과목', 'a2'], ['교습소', 'a3'],
          ['아파트', 'p3'], ['상가', 'g3']]
           .map(([k, c]) => '<button type="button" class="tg ' + c + '" data-show="' + k + '"' +
-               ' aria-pressed="' + state.show[k] + '"><i class="pin ' + c + '"></i>' + k + '</button>').join('') +
+               ' aria-pressed="' + state.show[k] + '"><i class="pin ' + c + '"></i>' +
+               kindLabel(k) + '</button>').join('') +
         '<label class="opt"><input type="checkbox" id="ringOn"' +
           (state.rings ? ' checked' : '') + '> 학교 반경 700m</label>' +
         '<label class="opt"><input type="checkbox" id="recentOn"' +
@@ -394,9 +416,8 @@ function cardFor(p, all){
     if (near.length){
       const by = k => near.filter(x => x.k === k).length;
       line.push('<u>반경 ' + SCHOOL_RADIUS + 'm 안 영어학원 ' + near.length + '곳</u>');
-      line.push([['영어 전문', by('영어 전문')], ['영어+타 과목', by('영어+타 과목')],
-                 ['교습소', by('교습소')]]
-                .filter(([, n]) => n).map(([k, n]) => k + ' ' + n).join(' · '));
+      line.push(['영어 전문', '영어+타 과목', '교습소']
+                .filter(k => by(k)).map(k => kindLabel(k) + ' ' + by(k)).join(' · '));
     } else {
       line.push('<u>반경 ' + SCHOOL_RADIUS + 'm 안에 영어학원이 없습니다</u>');
     }
@@ -434,7 +455,7 @@ function cardFor(p, all){
     line.push('<small>최근 2년 매매 ' + p.c + '건</small>');
   } else {
     const age = p.y ? (new Date().getFullYear() - p.y + 1) : null;
-    line.push([p.k, age ? age + '년차' : null].filter(Boolean).join(' · '));
+    line.push([kindLabel(p.k), age ? age + '년차' : null].filter(Boolean).join(' · '));
     if (p.c) line.push(p.c);
     if (p.f) line.push('월 ' + Math.round(p.f / 10000) + '만원 <small>(신고 공개분)</small>');
     const schools = all.filter(x => x.t === 's')
@@ -454,7 +475,7 @@ function cardForSpot(group, all, expanded){
   const kinds = {};
   for (const g of group) kinds[g.k] = (kinds[g.k] || 0) + 1;
   const head = '<b>이 건물에 ' + group.length + '곳</b>' +
-               '<span>' + Object.entries(kinds).map(([k, n]) => k + ' ' + n).join(' · ') + '</span>';
+               '<span>' + Object.entries(kinds).map(([k, n]) => kindLabel(k) + ' ' + n).join(' · ') + '</span>';
   const limit = expanded ? group.length : SPOT_PREVIEW;
   const shown = group.slice(0, limit).map((g, i) => {
     const age = g.y ? (new Date().getFullYear() - g.y + 1) + '년차' : '';
@@ -473,7 +494,7 @@ function muteBasemap(box){
   const pane = box.children[0] && box.children[0].children[0];
   if (!pane) return;
   for (const layer of pane.children){
-    if (layer.querySelector('img')) layer.style.filter = 'saturate(.3) brightness(1.05)';
+    if (layer.querySelector('img')) layer.style.filter = 'grayscale(.9) brightness(1.06) contrast(.92)';
   }
 }
 
@@ -533,7 +554,7 @@ function drawMap(row, keepView){
         bounds.extend(pos);
         const school = p.t === 's';
         if (school && state.rings){
-          const tint = p.k === '중학교' ? '#1f4f7a' : '#3f86c4';
+          const tint = p.k === '중학교' ? '#8a2be2' : '#0a5cff';
           const ring = new kakao.maps.Circle({
             center: pos, radius: 700, strokeWeight: 1, strokeColor: tint,
             strokeOpacity: .45, strokeStyle: 'shortdash',
@@ -544,7 +565,8 @@ function drawMap(row, keepView){
         const el = document.createElement('div');
         const shape = p.t === 'p' ? 'p' + priceLevel(p.m2)
                     : p.t === 'g' ? 'g' + shopUse(p.k).level
-                    : !school ? 'a' : (p.k === '중학교' ? 'm' : 'e');
+                    : !school ? 'a ' + ((ACA_KIND[p.k] || ACA_KIND['영어 전문']).pin)
+                    : (p.k === '중학교' ? 'm' : 'e');
         el.className = 'mk ' + shape;
         if (group.length > 1) el.dataset.n = group.length;
         el.innerHTML = '<div class="card">' + cardForSpot(group, pts) + '</div>';
@@ -634,7 +656,7 @@ function render(){
 
   count.innerHTML = '지역 <b>' + fmt(list.length) + '</b>개';
   const medA = stats[0].med;
-  sum.innerHTML = mA.partial
+  sum.innerHTML = (mA.partial || mA.ratio)
     ? (medA !== null ? '중앙값 <b>' + fmt(medA) + '</b>' + mA.u : '')
     : '합계 <b>' + fmt(list.reduce((s, r) => s + (r[state.a] || 0), 0)) + '</b>' + mA.u +
       (medA !== null ? ' · 중앙값 <b>' + fmt(medA) + '</b>' + mA.u : '');
@@ -673,6 +695,13 @@ function render(){
   const notes = [];
   if (state.hideZero)
     notes.push('순위 지표가 <b>0인 지역은 빼고</b> 셌습니다. 왼쪽에서 넣을 수 있습니다.');
+  if (state.a === 'kids_per_eng'){
+    const none = DATA[state.unit].filter(r =>
+      r.eng_total === 0 && r.pop_target > 0 &&
+      (state.region === 'all' || r.sido === state.region)).length;
+    if (none) notes.push('영어학원이 <b>한 곳도 없는 지역 ' + fmt(none) + '곳</b>은 나눌 수 없어 뺐습니다. ' +
+                         '「영어 학원·교습소 전체」를 적은 순으로 보면 나옵니다.');
+  }
   if (state.unit === 'dong')
     notes.push('동은 <b>법정동</b>입니다. 주소에 동이 없는 학원 ' +
                fmt(DATA.counts.rows - DATA.counts.dong_parsed) + '건은 목록에서 뺐고, ' +
@@ -693,6 +722,7 @@ fetch('data/regions.json?v=' + V)
   .then(r => r.json())
   .then(d => {
     DATA = d;
+    addRatios(d.gu); addRatios(d.dong);
     basis.textContent = '영어학원 ' + fmt(d.counts.english) + '곳 · 초중학교 ' +
                         fmt(d.counts.schools) + '개교';
     render();

@@ -217,97 +217,119 @@ select.add-col{
 .maplegend .tg:hover{border-color:var(--ink-3)}
 .maplegend .tg[aria-pressed="false"]{opacity:.42; background:#f4f2ee}
 .maplegend .tg[aria-pressed="false"] .pin{filter:grayscale(1)}
-.maplegend .pin{display:inline-block; width:11px; height:11px; flex:0 0 auto;
-                border:1.5px solid #fff; box-shadow:0 1px 2px rgba(0,0,0,.35)}
-.maplegend .pin.e{background:#1668b8; border-radius:2px}
-.maplegend .pin.m{background:#10355c; border-radius:2px; transform:rotate(45deg)}
-.maplegend .pin.a1{background:#e4550d; border-radius:50%}
-.maplegend .pin.a2{background:#e4550d; border-radius:50%; opacity:.62}
-.maplegend .pin.a3{background:#e4550d; border-radius:50%; opacity:.38}
-.maplegend .pin.p3{background:#5b3a93; border-radius:2px; width:9px; height:13px}
-.maplegend .pin.g3{background:#0d6b6b; border-radius:2px}
 .maplegend .opt{display:flex; align-items:center; gap:6px; cursor:pointer; margin-left:6px}
 .maplegend .hint{margin-left:auto; color:var(--ink-3); font-variant-numeric:tabular-nums}
 
 /* 지도 위 핀.
-   카카오 지도 바탕에 동그란 POI 아이콘이 많아서, 우리 핀은 모양으로 구분한다.
-   초등학교=사각형, 중학교=마름모, 학원=물방울. 흰 테두리로 바탕과 떼어낸다. */
+   카카오 바탕은 POI 아이콘이 많고 복잡하다. 바탕은 흑백에 가깝게 누르고,
+   핀은 종류마다 모양과 색을 둘 다 다르게, 채도를 끝까지 올린다.
+     초등학교 파랑 사각형 · 중학교 보라 마름모
+     영어만 핑크 물방울 · 영어+다른 과목 주황 물방울 · 교습소 노랑 동그라미
+     아파트 민트 세로막대 · 상가 연두 삼각형 */
+:root{
+  --pin-e:#0a5cff; --pin-m:#8a2be2;
+  --pin-a1:#ff1f7a; --pin-a2:#ff7a00; --pin-a3:#ffc800;
+  --pin-p:#00c2a0; --pin-g:#7ed600;
+}
 .mk{position:relative; cursor:pointer; white-space:nowrap}
 .mk::after{
   content:''; position:absolute; left:50%; bottom:0; box-sizing:border-box;
   border:2.5px solid #fff;
-  box-shadow:0 0 0 1px rgba(0,0,0,.28), 0 2px 5px rgba(0,0,0,.35);
+  box-shadow:0 0 0 1.5px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.45);
 }
-.mk.a::after{                       /* 영어학원 — 물방울 */
-  width:16px; height:16px; margin-left:-8px; background:#e4550d;
+.mk.a1::after,.mk.a2::after{        /* 영어학원 — 물방울 */
+  width:20px; height:20px; margin-left:-10px;
   border-radius:50% 50% 50% 0; transform:rotate(-45deg);
 }
+.mk.a1::after{background:var(--pin-a1)}
+.mk.a2::after{background:var(--pin-a2)}
+.mk.a3::after{                      /* 교습소 — 동그라미 */
+  width:17px; height:17px; margin-left:-8.5px; border-radius:50%; background:var(--pin-a3);
+}
 .mk.e::after{                       /* 초등학교 — 사각형 */
-  width:19px; height:19px; margin-left:-9.5px; background:#1668b8; border-radius:4px;
+  width:20px; height:20px; margin-left:-10px; background:var(--pin-e); border-radius:3px;
 }
 .mk.m::after{                       /* 중학교 — 마름모 */
-  width:18px; height:18px; margin-left:-9px; background:#10355c;
-  border-radius:4px; transform:rotate(45deg);
+  width:18px; height:18px; margin-left:-9px; background:var(--pin-m);
+  border-radius:3px; transform:rotate(45deg);
 }
-/* 부동산 — ㎡당 가격이 높을수록 진하다 */
-.mk[class*="p"]::after, .mk[class*="g"]::after{}
-.mk.p1::after,.mk.p2::after,.mk.p3::after{      /* 아파트 — 세로 사각형 */
-  width:13px; height:19px; margin-left:-6.5px; border-radius:3px;
+/* 아파트 — 세로 막대. 비쌀수록 진하다 */
+.mk.p1::after,.mk.p2::after,.mk.p3::after{
+  width:13px; height:22px; margin-left:-6.5px; border-radius:3px; background:var(--pin-p);
 }
-.mk.p1::after{background:#c3b3dd}
-.mk.p2::after{background:#8e6fc0}
-.mk.p3::after{background:#5b3a93}
-.mk.g1::after,.mk.g2::after,.mk.g3::after{      /* 상가 — 삼각형 */
-  width:0; height:0; margin-left:-9px; border:0; border-radius:0;
-  border-left:9px solid transparent; border-right:9px solid transparent;
-  box-shadow:none; filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));
+.mk.p1::after{opacity:.45}
+.mk.p2::after{opacity:.75}
+/* 상가 — 삼각형. 학원이 바로 들어갈 수 있을수록 진하다 */
+.mk.g1::after,.mk.g2::after,.mk.g3::after{
+  width:0; height:0; margin-left:-11px; border:0; border-radius:0; box-shadow:none;
+  border-left:11px solid transparent; border-right:11px solid transparent;
+  border-bottom:19px solid var(--pin-g);
+  filter:drop-shadow(0 0 1px #000) drop-shadow(0 2px 3px rgba(0,0,0,.5));
 }
-.mk.g1::after{border-bottom:16px solid #9ccfcf}
-.mk.g2::after{border-bottom:16px solid #3c9f9f}
-.mk.g3::after{border-bottom:16px solid #0d6b6b}
+.mk.g2::after{border-bottom-color:#c4ec80}
+.mk.g1::after{border-bottom-color:#c9cdd2}
+
 /* 한 건물에 여러 곳이면 개수를 핀 위에 얹는다 */
 .mk[data-n]::before{
-  content:attr(data-n); position:absolute; left:50%; bottom:13px;
+  content:attr(data-n); position:absolute; left:50%; bottom:16px;
   transform:translateX(-50%); z-index:1;
-  background:#fff; color:var(--ink); border:1.5px solid currentColor;
-  border-radius:999px; min-width:19px; height:17px; padding:0 4px;
-  font-size:11px; font-weight:700; line-height:15px; text-align:center;
-  box-shadow:0 1px 3px rgba(0,0,0,.35);
+  background:#fff; color:#111; border:2px solid currentColor;
+  border-radius:999px; min-width:21px; height:19px; padding:0 4px;
+  font-size:12px; font-weight:800; line-height:15px; text-align:center;
+  box-shadow:0 1px 3px rgba(0,0,0,.4);
 }
-.mk.a[data-n]::before{color:#c4470a}
-.mk.e[data-n]::before{color:#1668b8}
-.mk.m[data-n]::before{color:#10355c}
+.mk.a1[data-n]::before{color:var(--pin-a1)}
+.mk.a2[data-n]::before{color:#e06a00}
+.mk.a3[data-n]::before{color:#c79a00}
+.mk.e[data-n]::before{color:var(--pin-e)}
+.mk.m[data-n]::before{color:var(--pin-m)}
 
+/* 범례 — 지도 핀과 같은 모양·색 */
+.maplegend .pin{display:inline-block; flex:0 0 auto; box-sizing:border-box;
+                border:1.5px solid #fff; box-shadow:0 0 0 1px rgba(0,0,0,.45)}
+.maplegend .pin.e{width:12px; height:12px; border-radius:2px; background:var(--pin-e)}
+.maplegend .pin.m{width:11px; height:11px; border-radius:2px; background:var(--pin-m); transform:rotate(45deg)}
+.maplegend .pin.a1,.maplegend .pin.a2{width:13px; height:13px; border-radius:50% 50% 50% 0; transform:rotate(-45deg)}
+.maplegend .pin.a1{background:var(--pin-a1)}
+.maplegend .pin.a2{background:var(--pin-a2)}
+.maplegend .pin.a3{width:12px; height:12px; border-radius:50%; background:var(--pin-a3)}
+.maplegend .pin.p3{width:9px; height:15px; border-radius:2px; background:var(--pin-p)}
+.maplegend .pin.g3{width:0; height:0; border:0; box-shadow:none;
+                   border-left:7px solid transparent; border-right:7px solid transparent;
+                   border-bottom:12px solid var(--pin-g); filter:drop-shadow(0 0 1px #000)}
+
+/* 말풍선 — 제목은 크게, 본문은 진하게 */
 .mk .card{display:none}
 .mk.open{z-index:9}
 .mk.open .card{
-  display:block; position:absolute; left:50%; bottom:22px; transform:translateX(-50%);
-  background:#fff; border:1px solid var(--line-2); border-radius:9px;
-  padding:9px 12px 10px; min-width:170px; max-width:260px;
-  box-shadow:0 4px 14px rgba(0,0,0,.2); white-space:normal; text-align:left;
+  display:block; position:absolute; left:50%; bottom:28px; transform:translateX(-50%);
+  background:#fff; border:1px solid var(--line-2); border-radius:10px;
+  padding:12px 15px 13px; min-width:210px; max-width:300px;
+  box-shadow:0 6px 20px rgba(0,0,0,.25); white-space:normal; text-align:left;
+  font-size:14px; line-height:1.55; color:#23272e;
 }
-.mk.open .card b{display:block; font-size:13.5px; font-weight:600; line-height:1.4}
-.mk.open .card span{display:block; font-size:12px; color:var(--ink-3); line-height:1.55; margin-top:3px}
-.mk.open .card .li{border-top:1px solid #f0eee9; padding-top:5px; margin-top:5px; color:var(--ink-2)}
-.mk.open .card .li small{color:var(--ink-4)}
-.mk.open .card .li.pick{cursor:pointer; margin-left:-6px; margin-right:-6px;
-                        padding-left:6px; padding-right:6px; border-radius:5px}
+.mk.open .card > b{display:block; font-size:17px; font-weight:800; line-height:1.35; color:var(--ink)}
+.mk.open .card > span{display:block; margin-top:5px}
+.mk.open .card span b{font-weight:800; font-size:inherit}
+.mk.open .card u{text-decoration:none; font-weight:700; color:var(--ink); font-size:15px}
+.mk.open .card small{font-size:12.5px; color:var(--ink-3)}
+.mk.open .card hr{border:0; border-top:1px solid #ebe8e2; margin:9px 0 0}
+.mk.open .card .li{border-top:1px solid #f0eee9; padding-top:6px; margin-top:6px; color:#23272e}
+.mk.open .card .li.pick{cursor:pointer; margin-left:-7px; margin-right:-7px;
+                        padding-left:7px; padding-right:7px; border-radius:6px}
 .mk.open .card .li.pick:hover{background:var(--accent-soft); color:var(--accent)}
-.mk.open .card .more{color:var(--accent); cursor:pointer; font-weight:600}
+.mk.open .card .more{color:var(--accent); cursor:pointer; font-weight:700}
 .mk.open .card .more:hover{text-decoration:underline}
 .mk.open .card .back{
   display:block; width:100%; text-align:left; border:0; background:transparent;
-  color:var(--ink-3); font-size:12px; cursor:pointer; padding:0 0 6px;
-  border-bottom:1px solid #f0eee9; margin-bottom:6px;
+  color:var(--ink-3); font-size:13px; cursor:pointer; padding:0 0 7px;
+  border-bottom:1px solid #f0eee9; margin-bottom:7px;
 }
 .mk.open .card .back:hover{color:var(--accent)}
-.mk.open .card u{text-decoration:none; color:var(--ink); font-weight:600}
-.mk.open .card hr{border:0; border-top:1px solid #f0eee9; margin:7px 0 0}
-.mk.open .card b{display:inline; font-size:12px; color:var(--ink)}
-.mk.open .card small{color:var(--ink-4)}
-.mk.open.e .card b{color:#2b6698}
-.mk.open.m .card b{color:#1f4f7a}
-.mk.open.a .card b{color:#b8631f}
-.mk.open[class*="p"] .card b{color:#5b3a93}
-.mk.open[class*="g"] .card b{color:#0d6b6b}
+/* 말풍선 제목 왼쪽에 그 핀 색 띠를 둘러 어느 핀인지 잇는다 */
+.mk.open .card{border-left:5px solid var(--pin-c, var(--line-2))}
+.mk.e{--pin-c:var(--pin-e)} .mk.m{--pin-c:var(--pin-m)}
+.mk.a1{--pin-c:var(--pin-a1)} .mk.a2{--pin-c:var(--pin-a2)} .mk.a3{--pin-c:var(--pin-a3)}
+.mk.p1,.mk.p2,.mk.p3{--pin-c:var(--pin-p)} .mk.g1,.mk.g2,.mk.g3{--pin-c:var(--pin-g)}
+.mk.open .card span b{color:#0b7a3b}
 
