@@ -201,13 +201,24 @@ select.add-col{
 #map{width:100%; height:440px; border-radius:9px; overflow:hidden; background:#eceae5}
 .mapmsg{display:flex; align-items:center; justify-content:center; height:100%;
         text-align:center; color:var(--ink-3); line-height:1.8; font-size:14px}
-.maplegend{display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+.maplegend{display:flex; align-items:center; gap:8px; flex-wrap:wrap;
            margin-top:12px; font-size:13.5px; color:var(--ink-2)}
-.maplegend .pin{display:inline-block; width:11px; height:11px;
-                margin-right:6px; vertical-align:-1px; border:1.5px solid #fff;
-                box-shadow:0 1px 2px rgba(0,0,0,.35)}
-.maplegend .pin.a{background:#d97a2b}
-.maplegend .ring{display:flex; align-items:center; gap:6px; cursor:pointer}
+.maplegend .tg{
+  display:inline-flex; align-items:center; gap:6px; cursor:pointer;
+  border:1px solid var(--line-2); background:var(--surface); color:var(--ink-2);
+  border-radius:999px; padding:5px 12px 5px 9px; font-size:13px; transition:.12s;
+}
+.maplegend .tg:hover{border-color:var(--ink-3)}
+.maplegend .tg[aria-pressed="false"]{opacity:.42; background:#f4f2ee}
+.maplegend .tg[aria-pressed="false"] .pin{filter:grayscale(1)}
+.maplegend .pin{display:inline-block; width:11px; height:11px; flex:0 0 auto;
+                border:1.5px solid #fff; box-shadow:0 1px 2px rgba(0,0,0,.35)}
+.maplegend .pin.e{background:#3f86c4; border-radius:2px}
+.maplegend .pin.m{background:#1f4f7a; border-radius:2px; transform:rotate(45deg)}
+.maplegend .pin.a1{background:#e0761f; border-radius:50%}
+.maplegend .pin.a2{background:#e0761f; border-radius:50%; opacity:.62}
+.maplegend .pin.a3{background:#e0761f; border-radius:50%; opacity:.38}
+.maplegend .opt{display:flex; align-items:center; gap:6px; cursor:pointer; margin-left:6px}
 .maplegend .hint{margin-left:auto; color:var(--ink-3); font-variant-numeric:tabular-nums}
 
 /* 지도 위 핀.
@@ -245,6 +256,3 @@ select.add-col{
 .mk.open.m .card b{color:#1f4f7a}
 .mk.open.a .card b{color:#b8631f}
 
-.maplegend .pin.e{background:#3f86c4; border-radius:2px}
-.maplegend .pin.m{background:#1f4f7a; border-radius:2px; transform:rotate(45deg)}
-.maplegend .pin.a{background:#e0761f; border-radius:50%}

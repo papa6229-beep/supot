@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 — supot</title>
-<link rel="stylesheet" href="styles.css?v=6">
+<link rel="stylesheet" href="styles.css?v=7">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -106,14 +106,17 @@ const METRICS = [
   {k:'pop_mid',       g:'인구', l:'중학생 나이 인구',        u:'명', sub:true, d:'만 12~14세 인구입니다.'},
 ];
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '6';
+const V = '7';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
 const UNKNOWN_DONG = '(동 미상)';
 
 const state = {a:'eng_total', cols:['pop_target', 'sch_total'], unit:'dong', region:'all',
-               desc:true, q:'', page:0, hideZero:true, picked:null, tab:'summary', rings:true};
+               desc:true, q:'', page:0, hideZero:true, picked:null, tab:'summary', rings:true,
+               show:{'초등학교':true, '중학교':true,
+                     '영어 전문':true, '영어+타 과목':true, '교습소':true},
+               recentOnly:false};
 let DATA = null;
 
 const fmt = n => (n === null || n === undefined) ? '—' : n.toLocaleString('ko-KR');
@@ -245,11 +248,14 @@ function renderDetail(list){
   const body = state.tab === 'map'
     ? '<div class="maparea"><div id="map"></div>' +
       '<div class="maplegend">' +
-        '<span><i class="pin e"></i>초등학교</span>' +
-        '<span><i class="pin m"></i>중학교</span>' +
-        '<span><i class="pin a"></i>영어학원</span>' +
-        '<label class="ring"><input type="checkbox" id="ringOn"' +
+        [['초등학교', 'e'], ['중학교', 'm'],
+         ['영어 전문', 'a1'], ['영어+타 과목', 'a2'], ['교습소', 'a3']]
+          .map(([k, c]) => '<button type="button" class="tg ' + c + '" data-show="' + k + '"' +
+               ' aria-pressed="' + state.show[k] + '"><i class="pin ' + c + '"></i>' + k + '</button>').join('') +
+        '<label class="opt"><input type="checkbox" id="ringOn"' +
           (state.rings ? ' checked' : '') + '> 학교 반경 700m</label>' +
+        '<label class="opt"><input type="checkbox" id="recentOn"' +
+          (state.recentOnly ? ' checked' : '') + '> 최근 3년에 생긴 곳만</label>' +
         '<span class="hint" id="mapcount"></span>' +
       '</div></div>'
     : '<div class="groups">' + groups + '</div>' + derived;
@@ -266,7 +272,11 @@ function renderDetail(list){
     b.onclick = () => { state.tab = b.dataset.tab; render(); };
   if (state.tab === 'map'){
     const ring = document.getElementById('ringOn');
-    if (ring) ring.onchange = () => { state.rings = ring.checked; drawMap(row); };
+    if (ring) ring.onchange = () => { state.rings = ring.checked; drawMap(row, true); };
+    const recent = document.getElementById('recentOn');
+    if (recent) recent.onchange = () => { state.recentOnly = recent.checked; render(); };
+    for (const b of detail.querySelectorAll('.tg[data-show]'))
+      b.onclick = () => { state.show[b.dataset.show] = !state.show[b.dataset.show]; render(); };
     drawMap(row);
   }
 }
@@ -333,7 +343,9 @@ function clearOverlays(){
   overlays = [];
 }
 
-function drawMap(row){
+let lastDong = null;
+
+function drawMap(row, keepView){
   const box = document.getElementById('map');
   if (!box) return;
   if (state.unit !== 'dong'){
@@ -348,7 +360,16 @@ function drawMap(row){
       return;
     }
     loadKakao().then(() => {
-      const pts = data.items;
+      const cutoff = new Date().getFullYear() - 3;
+      const pts = data.items.filter(p =>
+        state.show[p.k] !== false &&
+        !(state.recentOnly && p.t === 'a' && (!p.y || p.y < cutoff)));
+      if (!pts.length){
+        const c = document.getElementById('mapcount');
+        if (c) c.textContent = '조건에 맞는 지점이 없습니다';
+        clearOverlays();
+        return;
+      }
       const lat = pts.reduce((s, p) => s + p.lat, 0) / pts.length;
       const lng = pts.reduce((s, p) => s + p.lng, 0) / pts.length;
       if (!mapObj || box.dataset.built !== '1'){
@@ -391,11 +412,16 @@ function drawMap(row){
           el.classList.add('open');
         };
       }
-      mapObj.setBounds(bounds, 40, 40, 40, 40);
+      // 동을 바꿨을 때만 화면을 맞춘다. 필터를 누를 때마다 튀면 어지럽다.
+      const dongKey = data.sido + '/' + data.gusi + '/' + data.dong;
+      if (!keepView && dongKey !== lastDong){ mapObj.setBounds(bounds, 40, 40, 40, 40); }
+      lastDong = dongKey;
 
       const c = document.getElementById('mapcount');
-      if (c) c.textContent = '학교 ' + pts.filter(p => p.t === 's').length +
-                             ' · 학원 ' + pts.filter(p => p.t === 'a').length;
+      const shown = '학교 ' + pts.filter(p => p.t === 's').length +
+                    ' · 학원 ' + pts.filter(p => p.t === 'a').length;
+      const all = data.items.length;
+      if (c) c.textContent = pts.length === all ? shown : shown + ' (전체 ' + all + '개 중)';
     }).catch(() => {
       box.innerHTML = '<div class="mapmsg">지도를 불러오지 못했습니다.' +
                       '<br>카카오 지도 키 또는 등록된 도메인을 확인해주세요.</div>';
