@@ -27,10 +27,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Pages는 저장소 설정에서 Source = GitHub Actions 로 켜 둔다.
+      # enablement: true 로 워크플로가 직접 켜려 하면 403이 난다.
       - uses: actions/configure-pages@v5
-        with:
-          # 저장소 설정에서 Pages를 켜두지 않았어도 여기서 켠다.
-          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
