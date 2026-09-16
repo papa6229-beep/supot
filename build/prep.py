@@ -198,7 +198,7 @@ def load_academies(known: dict[tuple[str, str], set[str]]) -> pd.DataFrame:
     # 행정구역명이 비어 있는 곳이 48건 있어 도로명주소에서 보충한다.
     gusi = df["행정구역명"].str.strip()
     df["구시"] = gusi.where(gusi != "", df["도로명주소"].map(parse_gusi))
-    df["동"] = [pick_dong(d, known.get((s, g), set()))
+    df["동"] = [known.fix(s, g, pick_dong(d, known.get((s, g), set())))
                 for d, s, g in zip(df["도로명상세주소"], df["시도"], df["구시"])]
     df["영어"] = mark_english(df)
     df["복합"] = mark_combined(df)
@@ -257,13 +257,52 @@ def load_dongmap() -> pd.DataFrame:
     return df[(df["행정동"] != df["구시"]) & (df["법정동"] != df["구시"])]
 
 
-def known_dongs(dongmap: pd.DataFrame) -> dict[tuple[str, str], set[str]]:
-    """구·시별로 실제 존재하는 동 이름 모음. 주소 파싱 검증에 쓴다."""
-    out: dict[tuple[str, str], set[str]] = defaultdict(set)
-    for sido, gusi, admin, legal in zip(dongmap["시도"], dongmap["구시"],
-                                        dongmap["행정동"], dongmap["법정동"]):
-        out[(sido, gusi)].update((admin, legal))
-    return out
+class DongBook(defaultdict):
+    """구·시별로 실제 존재하는 동 이름 모음. 주소 파싱 검증에 쓴다.
+
+    book[(시도, 구시)] 는 그 구의 행정동·법정동 이름 집합이다.
+    fix() 는 파싱한 동 이름을 한 번 더 바로잡는다.
+    """
+
+    def __init__(self, dongmap: pd.DataFrame):
+        super().__init__(set)
+        self.legal: dict[tuple[str, str], set[str]] = defaultdict(set)
+        self.admin: dict[tuple[str, str], dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
+        self.where: dict[tuple[str, str], set[str]] = defaultdict(set)
+        for sido, gusi, admin, legal in zip(dongmap["시도"], dongmap["구시"],
+                                            dongmap["행정동"], dongmap["법정동"]):
+            self[(sido, gusi)].update((admin, legal))
+            self.legal[(sido, gusi)].add(legal)
+            self.admin[(sido, gusi)][admin].add(legal)
+            self.where[(sido, legal)].add(gusi)
+
+    def fix(self, sido: str, gusi: str, name: str) -> str:
+        if name == UNKNOWN_DONG:
+            return name
+        key = (sido, gusi)
+        if name in self.legal[key]:
+            return name
+        # 행정동 이름이면 법정동으로 옮긴다. 송중동 -> 미아동.
+        # 법정동이 여럿에 걸치면(청파동 -> 청파동1·2·3가, 서계동) 하나로 못 정한다.
+        # 읍·면은 우리 목록의 단위 그대로라 건드리지 않는다.
+        if name in self.admin[key] and not name.endswith(("읍", "면")):
+            legal = self.admin[key][name]
+            return next(iter(legal)) if len(legal) == 1 else UNKNOWN_DONG
+        if name in self[key]:
+            return name
+        # 리가 동으로 바뀐 곳. 광주시 고산리 -> 고산동. 연계정보가 개편을 못 따라왔다.
+        if name.endswith("동") and name[:-1] + "리" in self.legal[key]:
+            return name
+        # 그 구에는 없고 옆 구에 있는 이름이면 주소의 구와 동이 엇갈린 것이다.
+        # 강남대로 건물이 '강남구 … (서초동)'으로 적힌 식이다. 어느 쪽이 맞는지
+        # 모르니 동은 비워두고, 구 합계에만 남긴다.
+        if self.where.get((sido, name), set()) - {gusi}:
+            return UNKNOWN_DONG
+        return name
+
+
+def known_dongs(dongmap: pd.DataFrame) -> DongBook:
+    return DongBook(dongmap)
 
 
 def load_schools(known: dict[tuple[str, str], set[str]]) -> pd.DataFrame:
@@ -274,7 +313,7 @@ def load_schools(known: dict[tuple[str, str], set[str]]) -> pd.DataFrame:
     df["시도"] = df["시도교육청명"].map(SIDO)
     df["구시"] = df["도로명주소"].map(parse_gusi)
     df = df.dropna(subset=["구시"])
-    df["동"] = [pick_dong(d, known.get((s, g), set()))
+    df["동"] = [known.fix(s, g, pick_dong(d, known.get((s, g), set())))
                 for d, s, g in zip(df["도로명상세주소"], df["시도"], df["구시"])]
     return df
 
