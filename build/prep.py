@@ -90,31 +90,48 @@ def mark_combined(df: pd.DataFrame) -> pd.Series:
 
 # --- 주소 파싱 ---------------------------------------------------------------
 DONG_TOKEN = re.compile(r"^[가-힣]+[0-9]*(동|읍|면|가)$")
+DONG_HEAD = re.compile(r"^([가-힣]+[0-9]*(?:동|읍|면|가))(?:\s|$)")
 
 
-def dong_candidates(detail: str) -> list[str]:
+def dong_candidates(detail: str) -> tuple[list[str], bool]:
     """도로명상세주소에서 동으로 보이는 토막을 등장 순서대로 모은다.
 
-    ', 3층 (개포동, 삼성빌딩)'              -> ['개포동']
-    ', 2층 211호(상가동) (대치동, 삼성아파트)' -> ['상가동', '대치동']   <- 앞은 건물 이름
+    ', 3층 (개포동, 삼성빌딩)'               -> (['개포동'], True)
+    ', 206호 (산본동, 개나리상가(가동))'       -> (['산본동', '가동'], True)
+    ', 2층 일부(정면)(노고산동 40-41)'        -> (['정면', '노고산동'], True)
+    '골드프라자 주건축물제1동 C406호'          -> (['주건축물제1동'], False)
+
+    괄호 안은 나이스가 법정동을 적는 칸이라 믿을 만하지만, 괄호가 없어 본문에서
+    주워온 것은 '가동'·'주건축물제1동'처럼 건물 표기일 때가 많다. 어디서 왔는지를
+    함께 돌려줘서 뒤에서 다르게 다룬다.
+
+    괄호가 겹쳐 있으면(`상가(가동)`) 짝을 맞춰 찾는 방식으로는 바깥쪽 산본동을
+    통째로 놓친다. 그래서 괄호 기호로 토막내고, 첫 토막만 괄호 밖으로 친다.
     """
     if not detail:
-        return []
+        return [], False
+    chunks = re.split(r"[()]", detail)
+    inside = [c for c in chunks[1:] if c.strip()]
     out = []
-    for inner in re.findall(r"\(([^()]*)\)", detail):
-        for part in (p.strip() for p in inner.split(",")):
-            if DONG_TOKEN.fullmatch(part):
-                out.append(part)
-    if not out:
-        m = re.search(r"([가-힣]+[0-9]*(?:동|읍|면|가))(?:[,\s]|$)", detail)
-        if m:
-            out.append(m.group(1))
-    return out
+    for chunk in inside:
+        for part in chunk.split(","):
+            m = DONG_HEAD.match(part.strip())
+            if m:
+                out.append(m.group(1))
+    if out:
+        return out, True
+    m = re.search(r"([가-힣]+[0-9]*(?:동|읍|면|가))(?:[,\s]|$)", detail)
+    return ([m.group(1)] if m else []), False
 
 
 # 건물 이름이 동 이름처럼 보이는 것들. '상가동 302호', '강촌라이프상가'가 대표적이다.
 # 법정동 이름에는 이런 말이 들어가지 않으므로 통째로 걸러도 안전하다.
 NOT_A_DONG = re.compile(r"상가|아파트|빌딩|타워|프라자|플라자|센터|별관|본관|신관|관리동|사무동|기숙사")
+
+# 건물의 동 표기('가동', '에이동', '제1동', '마송타운1동'). 이름만 보면 동인지
+# 건물인지 알 수 없어서, 그 구에 실제로 있는 이름일 때만 받아들인다.
+# 중구 다동이나 동작구 상도1동처럼 진짜 있는 이름은 그대로 살아남는다.
+BUILDING_LABEL = re.compile(r"^(?:[가-하]|에이|비|씨|디|이|제\d+|주건축물제\d+|.*\d+)동$")
 
 
 def pick_dong(detail: str, known: set[str]) -> str:
@@ -123,7 +140,8 @@ def pick_dong(detail: str, known: set[str]) -> str:
     '(상가동)'처럼 아파트 상가 동호수가 앞 괄호에 오는 경우가 1천 건 넘게 있어서,
     연계정보에 있는 이름인지 확인하고 고른다.
     """
-    candidates = [c for c in dong_candidates(detail) if not NOT_A_DONG.search(c)]
+    found, from_paren = dong_candidates(detail)
+    candidates = [c for c in found if not NOT_A_DONG.search(c)]
     for name in candidates:
         if name in known:
             return name
@@ -132,7 +150,13 @@ def pick_dong(detail: str, known: set[str]) -> str:
         for a, b in (("면", "읍"), ("읍", "면")):
             if name.endswith(a) and name[:-1] + b in known:
                 return name[:-1] + b
-    return candidates[0] if candidates else UNKNOWN_DONG
+    # 연계정보에 없어도 괄호 안 값이면 받아들인다. 오포읍이 갈라지며 생긴
+    # 광주시 고산동·능평동처럼, 연계정보가 개편을 아직 못 따라온 동들이 있다.
+    if from_paren:
+        for name in candidates:
+            if not BUILDING_LABEL.match(name):
+                return name
+    return UNKNOWN_DONG
 
 
 def parse_gusi(road_address: str) -> str | None:
@@ -346,7 +370,10 @@ def main() -> None:
             "dong_total": len(dong),
         },
         "gu": sorted(gu, key=lambda r: -r["eng_total"]),
-        "dong": sorted(dong, key=lambda r: -r["eng_total"]),
+        # 동을 못 읽어낸 학원 묶음은 지역이 아니라서 목록에서 뺀다.
+        # 그 학원들도 구·시 집계에는 그대로 들어가 있다.
+        "dong": sorted((r for r in dong if r["name"] != UNKNOWN_DONG),
+                       key=lambda r: -r["eng_total"]),
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
