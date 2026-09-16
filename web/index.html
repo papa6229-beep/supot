@@ -6,12 +6,12 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Chalkmap — 영어 교습소·학원 창업 준비</title>
-<link rel="stylesheet" href="styles.css?v=43">
+<link rel="stylesheet" href="styles.css?v=44">
 <script>
 // 브라우저가 옛 화면을 붙잡고 있으면 새 버전으로 한 번 다시 불러온다.
 // 올릴 때마다 이 숫자와 version.json 을 같이 올린다.
 (function(){
-  var PAGE_V = '43';
+  var PAGE_V = '44';
   fetch('version.json?t=' + Date.now(), {cache: 'no-store'})
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(d){
@@ -43,11 +43,11 @@
       <span class="t">학부모 · 교육환경</span>
       <span class="d"><span>부모가 고르는 기준과 시장 숫자</span><span>2026 교육 제도까지</span></span>
     </a>
-    <div class="tile empty">
-      <span class="no">03</span>
-      <span class="t">준비 중</span>
-      <span class="d"></span>
-    </div>
+    <a class="tile live" href="curriculum.html">
+      <span class="no">03 <span class="beta">베타</span></span>
+      <span class="t">수업 · 교재 준비</span>
+      <span class="d"><span>2026 교육과정·평가 기준</span><span>커리큘럼·문항 만들기 미리보기</span></span>
+    </a>
     <div class="tile empty">
       <span class="no">04</span>
       <span class="t">준비 중</span>

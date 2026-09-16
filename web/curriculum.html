@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<!-- 새로 올린 게 바로 보이도록 페이지는 매번 확인하게 한다. -->
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>수업 · 교재 준비 — Chalkmap</title>
+<link rel="stylesheet" href="styles.css?v=44">
+<script>
+// 브라우저가 옛 화면을 붙잡고 있으면 새 버전으로 한 번 다시 불러온다.
+// 올릴 때마다 이 숫자와 version.json 을 같이 올린다.
+(function(){
+  var PAGE_V = '44';
+  fetch('version.json?t=' + Date.now(), {cache: 'no-store'})
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){
+      if (!d || d.v === PAGE_V) return;
+      var key = 'reloaded-' + d.v;
+      try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch (e) { return; }
+      location.reload();
+    })
+    .catch(function(){});
+})();
+</script>
+</head>
+<body>
+<div class="app guide">
+
+  <aside class="side">
+    <a class="home-link" href="index.html">← 메뉴</a>
+    <h1>수업 · 교재 준비 <span class="beta">베타</span></h1>
+    <p class="where">2026 교육과정 기준과, 커리큘럼·문항을 만드는 도구를 미리 보여드립니다</p>
+
+    <div class="legend-tags">
+      <p><span class="tg fact">공식</span>교육부·교육청·KICE·EBS 기준</p>
+      <p><span class="tg view">설계</span>기준서가 권하는 설계 기준</p>
+      <p><span class="tg lore">표본</span>학원이 공개한 학교 시험 분석</p>
+      <p><span class="beta">베타</span>미리보기 도구 · 저장 안 됨</p>
+    </div>
+
+    <nav class="toc" id="toc">
+      <a href="#c1">2026 기준 한 장</a>
+      <a href="#c2">학년별 설계 비중</a>
+      <a href="#c3">학교마다 시험이 다르다</a>
+      <a href="#c4">12주 커리큘럼 보기</a>
+      <a href="#c5">시험 역산 달력</a>
+      <a href="#c6">단원 설계 순서</a>
+      <a href="#c7">AI 문항 요청서</a>
+      <a href="#c8">앞으로 만들 것</a>
+      <a href="#c9">출처</a>
+    </nav>
+  </aside>
+
+  <main class="main doc">
+
+    <section class="card lead">
+      <h2>이 페이지는</h2>
+      <p>「2026 초·중학교 영어 교육과정·평가·교재설계 기준서」(2026.9.16)를 바탕으로 합니다. <b>교육과정·평가 규칙 같은 공식 기준은 데이터로</b> 그대로 싣고, 커리큘럼·시험 대비·문항 만들기는 <b>앞으로 이 사이트가 도와줄 모습을 미리 보여주는 베타 도구</b>로 두었습니다.</p>
+    </section>
+
+    <section id="c1" class="card">
+      <h2>2026 기준 한 장 <span class="tg fact">공식</span></h2>
+      <h3>학년별 적용 교육과정</h3>
+      <table class="tbl">
+        <thead><tr><th>학년</th><th>2026년 적용</th><th>영역 체계</th><th>어휘 규모</th></tr></thead>
+        <tbody>
+          <tr><td>초5·6</td><td>2022 개정 <small>(2026 신규)</small></td><td>이해 · 표현</td><td>누적 600단어</td></tr>
+          <tr><td>중1</td><td>2022 개정</td><td>이해 · 표현</td><td rowspan="3">중학교 1,500단어</td></tr>
+          <tr><td>중2</td><td>2022 개정 <small>(2026 신규)</small></td><td>이해 · 표현</td></tr>
+          <tr class="hl"><td>중3</td><td><b>2015 개정</b> <small>(2027 전환)</small></td><td>듣기 · 말하기 · 읽기 · 쓰기</td></tr>
+          <tr class="dimrow"><td>초3·4</td><td>2022 개정</td><td>이해 · 표현</td><td>300단어</td></tr>
+        </tbody>
+      </table>
+      <p class="caution">중3은 교육과정 코드와 영역 이름이 중1·2와 다릅니다. 같은 체계로 교재를 만들면 어긋납니다.</p>
+
+      <h3>평가 규칙</h3>
+      <div class="cols2">
+        <div class="box">
+          <b>중학교</b>
+          <ul>
+            <li>학교 시험은 <b>배운 범위와 수준을 벗어나 낼 수 없음</b></li>
+            <li>정기시험으로 재기 어려운 성취기준은 형성·수행평가로 확인</li>
+            <li>수행평가는 <b>수업 시간 안에서</b> 과정과 결과를 관찰. 집에서 해오는 과제에 점수를 주는 방식은 제한</li>
+            <li>AI를 쓰면 허용 범위·출처 표시를 평가계획에 명시</li>
+            <li>성취수준은 <b>A~E</b> — 글 길이·복잡성·정확성·도움 정도로 구분</li>
+          </ul>
+        </div>
+        <div class="box">
+          <b>초등학교</b>
+          <ul>
+            <li>전국 공통 지필고사가 아니라 학교·교육청 계획에 따라 관찰·구술·수행·포트폴리오를 섞음</li>
+            <li>평가계획의 성취기준별 수행 증거가 중요</li>
+          </ul>
+          <b>전국 중학 영어듣기능력평가</b>
+          <ul>
+            <li>연 2회 · 학년별 20문항 · 5지선다</li>
+            <li>2026년 1회 3/31~4/2 · 2회 9/1~9/3</li>
+            <li>수행평가 반영 여부·비율은 학교마다 다름 (5~20% 사례)</li>
+          </ul>
+        </div>
+      </div>
+      <h3>2022 개정에서 달라진 점</h3>
+      <table class="tbl">
+        <thead><tr><th>2015</th><th>2022</th><th>수업에서 달라지는 것</th></tr></thead>
+        <tbody>
+          <tr><td>듣기·말하기·읽기·쓰기</td><td>이해 · 표현</td><td>기능을 나누기보다 한 과제 안에서 읽고 듣고 말하고 쓰기</td></tr>
+          <tr><td>언어 기능 중심</td><td>지식·이해 / 과정·기능 / 가치·태도</td><td>정답뿐 아니라 전략·참여·협력도 평가</td></tr>
+          <tr><td>인쇄된 글 중심</td><td>복합양식·디지털 매체</td><td>이미지·표·메시지·영상 자료 사용</td></tr>
+          <tr><td>결과 확인</td><td>과정 피드백</td><td>진단 → 형성 → 수정 → 총괄의 순환</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="c2" class="card">
+      <h2>학년별 설계 비중 <span class="tg view">설계</span></h2>
+      <div class="ratios" id="ratios"></div>
+      <div class="cols2">
+        <div class="box">
+          <b>어휘는 이렇게 다시 보여줍니다</b>
+          <div class="intervals"><span>처음</span><span>1일 뒤</span><span>1주 뒤</span><span>3주 뒤</span><span>8주 뒤<small>새 맥락에서 써보기</small></span></div>
+          <p class="small">단원 신출어·누적 복습어·학교별 확장어를 따로 관리합니다. 난도는 희귀한 단어를 넣는 게 아니라 문맥 단서의 양·의미 관계·형태 변형으로 조절합니다.</p>
+        </div>
+        <div class="box">
+          <b>말하기 수행평가 배점 예시 (10점)</b>
+          <table class="tbl mini">
+            <tbody>
+              <tr><td>짝 대화</td><td>과업 4 · 상호작용 3 · 언어 2 · 발음 1</td></tr>
+              <tr><td>개별 발표</td><td>내용 4 · 조직 2 · 언어 2 · 전달 2</td></tr>
+              <tr><td>읽고 요약 말하기</td><td>핵심정보 4 · 재구성 3 · 언어 2 · 유창성 1</td></tr>
+              <tr><td>프로젝트</td><td>과정 3 · 결과물 3 · 영어 사용 2 · 협력·윤리 2</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <h3>문법은 이렇게 가르칩니다</h3>
+      <table class="tbl">
+        <thead><tr><th>피할 방식</th><th>권하는 방식</th></tr></thead>
+        <tbody>
+          <tr><td>용어 설명 → 맥락 없는 30문제</td><td>의미 차이 경험 → 형태 발견 → 짧은 통제 연습 → 본문·대화 적용 → 조건 영작</td></tr>
+          <tr><td>한 문법을 한 단원에서 끝냄</td><td>뒤 단원의 듣기·읽기·쓰기에서 계속 다시 등장</td></tr>
+          <tr><td>맞는 문장만 보여줌</td><td>대표 오류와 왜 뜻이 달라지는지 비교</td></tr>
+          <tr><td>정답 문장 외우기</td><td>같은 기능을 새 사람·시간·장소·목적으로 바꿔 만들기</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="c3" class="card">
+      <h2>학교마다 시험이 다르다 <span class="tg lore">표본</span></h2>
+      <p>같은 중2 1학기인데도 문항 구성이 이만큼 다릅니다. <b>전국 경향이 아니라 학교별 차이를 보여주는 예시</b>입니다.</p>
+      <div class="exam-bars" id="exams"></div>
+      <div class="cols2">
+        <div class="box">
+          <b>학교 시험에서 반복되는 다섯 축</b>
+          <ul>
+            <li><b>어휘</b> — 영영풀이, 문맥 빈칸, 다의어, 형태 변형, 퍼즐</li>
+            <li><b>어법</b> — 옳은 개수, 오류 찾기, 통합 어법, 어순</li>
+            <li><b>본문</b> — 내용 일치, 요지, 순서, 문장 삽입, 일부 변형</li>
+            <li><b>서술형</b> — 조건 영작, 요약, 빈칸 완성, 근거 제시</li>
+            <li><b>외부 지문</b> — 새 주제·새 지문, 복합 자료</li>
+          </ul>
+        </div>
+        <div class="box">
+          <b>전국 공통으로 말할 수 없는 것</b>
+          <ul>
+            <li>서술형 비중이 늘었다고 단정할 수 없음 — 전부 객관식인 학교와 논술형이 있는 학교가 공존</li>
+            <li>지문 변형률도 학교마다 크게 다름</li>
+            <li>학원가의 고난도 사례를 기본 교재 난도로 삼으면 과잉 준비</li>
+          </ul>
+          <p class="point small">그래서 준비는 <b>공통 실력 70~80% + 그 학교 기출 적응 20~30%</b>로 나눕니다.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="c4" class="card">
+      <h2>12주 커리큘럼 보기 <span class="beta">베타</span></h2>
+      <p>학년을 고르면 기준서의 12주 예시가 나옵니다. 지금은 보기만 되고, 나중에 학생 수준·학교 시험 일정에 맞춰 고치고 저장할 수 있게 만들 예정입니다.</p>
+      <div class="seg grades" id="gradeSeg"></div>
+      <div class="plan-note" id="planNote"></div>
+      <div class="tblwrap"><table class="tbl plan" id="plan"></table></div>
+      <button type="button" class="btn ghost" onclick="window.print()">이 계획 인쇄하기</button>
+    </section>
+
+    <section id="c5" class="card">
+      <h2>시험 역산 달력 <span class="beta">베타</span></h2>
+      <p>학교 시험 첫날을 넣으면 6주 전부터 주마다 할 일을 날짜로 펼칩니다.</p>
+      <label class="inline">시험 첫날 <input type="date" id="examDate"></label>
+      <div class="tblwrap"><table class="tbl" id="back"></table></div>
+    </section>
+
+    <section id="c6" class="card">
+      <h2>단원 설계 순서 <span class="tg view">설계</span></h2>
+      <ol class="rank">
+        <li><b>학년·적용 교육과정·성취기준을 정합니다</b></li>
+        <li><b>단원이 끝날 때 학생이 보여줄 모습을 한 문장으로 씁니다</b></li>
+        <li><b>평가 기준표와 마지막 과제를 먼저 만듭니다</b></li>
+        <li><b>필요한 어휘·문법·발음·담화 구조를 거꾸로 뽑습니다</b></li>
+        <li><b>통제 → 유도 → 자유 산출 순서로 연습을 놓습니다</b></li>
+        <li><b>진단·형성·총괄 문항을 같은 성취기준, 다른 맥락으로 만듭니다</b></li>
+        <li><b>난도·정답·편향·저작권·접근성을 검수합니다</b></li>
+      </ol>
+      <h3>한 단원의 흐름</h3>
+      <div class="flow">
+        <div><b>진단</b><span>짧은 듣기·읽기·말/글</span><small>점수 없음</small></div>
+        <div><b>입력</b><span>대화·글·이미지 이해</span><small>바로 확인</small></div>
+        <div><b>언어 발견</b><span>어휘·구문·문법 패턴</span><small>짧은 형성</small></div>
+        <div><b>통제 연습</b><span>선택·완성·변환·배열</span><small>자동 피드백</small></div>
+        <div><b>유도 수행</b><span>그림·조건·모델로 말/글</span><small>분석 기준표</small></div>
+        <div><b>전이 과제</b><span>새 맥락의 발표·이메일·요약</span><small>총괄 수행</small></div>
+        <div><b>성찰</b><span>오류 유형·다음 목표</span><small>자기·동료 평가</small></div>
+      </div>
+      <h3>난도 조절표</h3>
+      <table class="tbl">
+        <thead><tr><th></th><th>쉬움</th><th>보통</th><th>어려움</th></tr></thead>
+        <tbody>
+          <tr><td>글</td><td>짧고 단순</td><td>중간 길이·복합문</td><td>길고 정보가 빽빽함</td></tr>
+          <tr><td>주제</td><td>매우 친숙</td><td>친숙</td><td>낯설지만 배경 설명 있음</td></tr>
+          <tr><td>정보 위치</td><td>한 문장</td><td>이웃 문장 결합</td><td>글 전체·여러 자료 결합</td></tr>
+          <tr><td>생각</td><td>드러난 정보</td><td>구조·관계</td><td>추론·전이</td></tr>
+          <tr><td>도움</td><td>그림·보기·문장틀</td><td>일부 힌트</td><td>혼자</td></tr>
+          <tr><td>산출</td><td>단어·구</td><td>한두 문장</td><td>짜임 있는 단락·발표</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="c7" class="card">
+      <h2>AI 문항 요청서 <span class="beta">베타</span></h2>
+      <p>칸을 채우면 Claude 같은 AI에 그대로 붙여 넣을 요청문이 만들어집니다. AI가 만든 문항은 <b>오른쪽 체크리스트로 반드시 사람이 검수</b>합니다. 나중에는 이 사이트 안에서 바로 만들고 검수까지 돕도록 고도화할 예정입니다.</p>
+      <div class="gen">
+        <form class="genform" id="genform" onsubmit="return false">
+          <label>학년
+            <select name="grade">
+              <option value="중2">중2 (2022 개정)</option>
+              <option value="중1">중1 (2022 개정)</option>
+              <option value="중3">중3 (2015 개정)</option>
+              <option value="초6">초6 (2022 개정)</option>
+              <option value="초5">초5 (2022 개정)</option>
+            </select>
+          </label>
+          <label>성취기준
+            <select name="std">
+              <option value="[9영01-04] 순서·인과 등 논리적 관계 파악">[9영01-04] 순서·인과 등 논리적 관계</option>
+              <option value="[9영01-02] 세부 정보 파악">[9영01-02] 세부 정보 파악</option>
+              <option value="">직접 적기 (아래 칸)</option>
+            </select>
+          </label>
+          <label>성취기준 직접 적기 <input name="stdText" placeholder="교과서·평가계획의 성취기준을 그대로"></label>
+          <label>목표 수준
+            <select name="level"><option>B</option><option>A</option><option>C</option><option>D</option><option>E</option></select>
+          </label>
+          <label>주제 <input name="topic" value="디지털 의사소통과 오해"></label>
+          <label>언어 형식 <input name="lang" value="간접의문문, 5형식"></label>
+          <label>핵심 어휘 수 <input name="words" type="number" value="12" min="0"></label>
+          <label>지문 길이 <input name="len" value="180~220단어"></label>
+          <fieldset>
+            <legend>문항 구성</legend>
+            <div class="mix">
+              <label>세부 <input name="m_detail" type="number" value="2" min="0"></label>
+              <label>중심 <input name="m_main" type="number" value="1" min="0"></label>
+              <label>순서·인과 <input name="m_order" type="number" value="1" min="0"></label>
+              <label>추론 <input name="m_infer" type="number" value="0" min="0"></label>
+              <label>어휘 <input name="m_vocab" type="number" value="0" min="0"></label>
+              <label>어법 <input name="m_gram" type="number" value="2" min="0"></label>
+              <label>조건 영작 <input name="m_write" type="number" value="1" min="0"></label>
+              <label>요약 <input name="m_sum" type="number" value="0" min="0"></label>
+            </div>
+          </fieldset>
+        </form>
+        <div class="genout">
+          <div class="outhead"><b>만들어진 요청문</b><button type="button" class="btn" id="copy">복사</button></div>
+          <pre id="prompt"></pre>
+          <b class="qa-title">검수 체크리스트</b>
+          <ul class="qa">
+            <li><label><input type="checkbox"> 2026 해당 학년의 적용 교육과정이 맞다</label></li>
+            <li><label><input type="checkbox"> 성취기준과 평가요소가 적혀 있다</label></li>
+            <li><label><input type="checkbox"> 정답이 하나이고 근거가 있다</label></li>
+            <li><label><input type="checkbox"> 오답이 실제 오개념을 반영하되 애매하지 않다</label></li>
+            <li><label><input type="checkbox"> 읽기량·배경지식이 목표 능력을 가리지 않는다</label></li>
+            <li><label><input type="checkbox"> 서술형 조건과 부분점수 기준이 맞다</label></li>
+            <li><label><input type="checkbox"> 교과서·기출을 그대로 베끼지 않았다</label></li>
+            <li><label><input type="checkbox"> 문화·성별·지역·경제 배경 편향이 없다</label></li>
+            <li><label><input type="checkbox"> 학생 개인정보·학교 내부자료를 넣지 않았다</label></li>
+          </ul>
+          <p class="small dim">체크는 저장되지 않습니다(베타).</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="c8" class="card">
+      <h2>앞으로 만들 것</h2>
+      <ul class="roadmap">
+        <li><b>학교별 내신 시트</b> — 입지·상권에서 고른 동의 중학교(재학생 수 포함)를 불러와, 학교마다 문항 수·서술형 비율·지문 변형·채점 규칙을 기록</li>
+        <li><b>내 커리큘럼 저장</b> — 12주 계획을 학생 수준·학교 시험 일정에 맞춰 고치고 저장</li>
+        <li><b>문항 만들기 연결</b> — 요청서에서 바로 문항을 만들고, 체크리스트 검수 결과까지 함께 보관</li>
+        <li><b>어휘·문법 누적표</b> — 단원별 신출어와 재노출 일정을 자동으로 관리</li>
+      </ul>
+    </section>
+
+    <section id="c9" class="card sources">
+      <h2>출처</h2>
+      <p>「2026 초·중학교 영어 교육과정·평가·교재설계 기준서」(2026.9.16) 및 그 근거 자료</p>
+      <ul>
+        <li>교육부 고시 제2022-33호 2022 개정 영어과 교육과정 · 적용 일정 — <a href="https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&amp;boardSeq=93458&amp;lev=0" target="_blank" rel="noopener">교육부</a> · <a href="https://ncic.go.kr/board/B0031.cs?act=read&amp;bwrId=1271" target="_blank" rel="noopener">국가교육과정정보센터</a></li>
+        <li>교육부 고시 제2015-74호 2015 개정 영어과 교육과정 — <a href="https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&amp;boardSeq=60747&amp;lev=0" target="_blank" rel="noopener">교육부</a></li>
+        <li>2022 개정 교육과정에 따른 중학교 학생평가 (2026) — <a href="https://www.goe.go.kr/resource/goe/na/bbs_2675/2026/05/34866f8c-3e6b-45c1-84fb-4b232c919650.pdf" target="_blank" rel="noopener">경기도교육청 PDF</a></li>
+        <li>2026 중등 학생평가 및 학업성적관리 이해하기 — <a href="https://www.goe.go.kr/resource/goe/na/bbs_2675/2026/02/58bdfa90-f02e-41dc-b6a5-f03a65f81e61.pdf" target="_blank" rel="noopener">경기도교육청 PDF</a></li>
+        <li>KICE 학생평가지원포털 — <a href="https://stas.moe.go.kr/" target="_blank" rel="noopener">stas.moe.go.kr</a> · 전국 중학 영어듣기능력평가 — <a href="https://mid.ebs.co.kr/english" target="_blank" rel="noopener">EBS 중학</a></li>
+        <li>학교 시험 표본(학원 공개 분석) — <a href="https://blog.betoedu.com/category/school-exam/" target="_blank" rel="noopener">베토영어학원(2026.7)</a> · <a href="https://www.hanyoungbee.com/home_common/notice.php?bid=40&amp;flag=view&amp;num=14793" target="_blank" rel="noopener">평촌중2 분석(2026.5)</a> · <a href="https://www.localnaeil.com/News/View/654350?AreaId=3&amp;pageidx=1" target="_blank" rel="noopener">지역내일(2026.5)</a></li>
+      </ul>
+      <p class="caution">12주 커리큘럼·역산표·요청서는 기준서의 예시를 옮긴 것입니다. 실제 수업에는 학교 교과서와 평가계획으로 다시 확인하세요.</p>
+    </section>
+
+  </main>
+</div>
+
+<script>
+// ---------- 학년별 설계 비중 ----------
+const RATIOS = [
+  {g: '초5·6', a: ['이해', 50], b: ['표현', 50], note: '단원 8~10차시 · 세부·중심·순서 이해 + 4~6문장 목적형 산출'},
+  {g: '중1',   a: ['공통 실력', 80], b: ['학교 적응', 20], note: '단원 10~12차시 · 요약·설명·이메일·발표'},
+  {g: '중2',   a: ['공통 실력', 70], b: ['학교 적응', 30], note: '단원 10~12차시 · 논리관계·추론 + 조건 영작·근거 있는 의견'},
+  {g: '중3',   a: ['내신', 60], b: ['고교 대비', 40], note: '단원 10~12차시 · 4기능 성취기준 + 고교 독해·구문'},
+  {g: '초3·4', a: ['듣기·말하기', 60], b: ['읽기·쓰기', 40], note: '단원 6~8차시 · 그림·행동을 쓰는 짧은 대화와 1~2문장 쓰기', dim: true},
+];
+document.getElementById('ratios').innerHTML = RATIOS.map(r =>
+  '<div class="ratio' + (r.dim ? ' dim' : '') + '"><span class="rg">' + r.g +
+      '<small>' + r.a[0] + ' : ' + r.b[0] + '</small></span>' +
+    '<div class="rbar"><span class="ra" style="width:' + r.a[1] + '%">' + r.a[1] + '</span>' +
+    '<span class="rb" style="width:' + r.b[1] + '%">' + r.b[1] + '</span></div>' +
+    '<span class="rn">' + r.note + '</span></div>').join('');
+
+// ---------- 학교 시험 표본 ----------
+const EXAMS = [
+  {s: '보평중 2학년 기말 (성남)', parts: [['객관식', 23], ['서답형', 3]], note: '25문항 · 어법 8문항 · 어법 계열 44%'},
+  {s: '삼평중 2학년 기말 (성남)', parts: [['객관식', 20], ['서답형', 2]], note: '지문 변형 36% · 어법 개수 세기 · 조건 영작'},
+  {s: '평촌중 2학년 중간 (안양)', parts: [['선택형', 20], ['논술형', 2]], note: '영영풀이 · 통합어법 · 문장 삽입 · 조건 영작'},
+  {s: '문현중 2학년 기말', parts: [['객관식', 29], ['서답형', 0]], note: '지문 변형 없음 · 어법 직접 문항 12개'},
+  {s: '한산중 2학년 기말', parts: [['객관식', 28], ['서답형', 0]], note: '단어·전치사 차이의 정밀 선택'},
+];
+const maxQ = Math.max(...EXAMS.map(e => e.parts[0][1] + e.parts[1][1]));
+document.getElementById('exams').innerHTML = EXAMS.map(e =>
+  '<div class="exam"><span class="es">' + e.s + '</span>' +
+    '<div class="ebar">' + e.parts.filter(p => p[1]).map((p, i) =>
+      '<span class="' + (i ? 'eb' : 'ea') + '" style="width:' + (p[1] / maxQ * 100) + '%">' + p[0] + ' ' + p[1] + '</span>').join('') +
+    '</div><span class="en">' + e.note + '</span></div>').join('') +
+  '<p class="small dim">문항 수는 공개 분석이 적은 대로입니다. 보평중은 서답형이 한 문항 안에 여러 칸이라 합계가 25를 넘습니다.</p>';
+
+// ---------- 12주 커리큘럼 ----------
+const PLANS = {
+  '초5·6': {cols: ['주', '이해', '표현', '산출물'], note: '이해 50 : 표현 50', rows: [
+    ['1', '세부정보 진단', '자기소개', '진단 프로필'], ['2', '중심 내용', '사람·사물 설명', '사진 설명'],
+    ['3', '순서', '방법 설명', '절차 카드'], ['4', '표·일정', '날짜·계획', '주간 계획'],
+    ['5', '감정·상황', '경험', '4문장 일기'], ['6', '누적 읽기', '수정하기', '중간 포트폴리오'],
+    ['7', '핵심과 세부', '의견·이유', '미니 설문'], ['8', '안내문', '질문·대답', '정보차 대화'],
+    ['9', '복합양식', '요약', '포스터 요약'], ['10', '문화 이야기', '비교', '비교 말하기'],
+    ['11', '프로젝트 자료', '초안·리허설', '디지털 안내'], ['12', '전이', '발표·성찰', '총괄 프로젝트']]},
+  '중1': {cols: ['주', '핵심 기능', '언어·구문', '평가'], note: '공통 실력 80 : 학교 적응 20', rows: [
+    ['1', '진단: 세부·중심·기초 문장', '기본 시제·문장구조', '무점수 진단'], ['2', '일상 대화의 목적', '요청·제안·응답', '듣기 형성'],
+    ['3', '세부정보', '의문문·시간·장소', '선택+단답'], ['4', '중심 내용', '핵심어·대명사', '요약 문장'],
+    ['5', '순서·인과', '연결어', '배열+설명'], ['6', '경험·계획', '과거·미래', '이메일 초안'],
+    ['7', '감정·의도', '정도·이유', '근거 고르기'], ['8', '설명', '묘사·비교', '사진 설명'],
+    ['9', '요약', '바꿔쓰기', '1문장 요약'], ['10', '학교별 내신 적응', '교과서·학습지', '미니 지필'],
+    ['11', '서술형', '조건·필수어', '분석 루브릭'], ['12', '통합', '읽고 말/글', '총괄']]},
+  '중2': {cols: ['주', '핵심 기능', '시험 연결', '산출'], note: '공통 실력 70 : 학교 적응 30', rows: [
+    ['1', '진단·전환', '2022 개정 코드 확인', '개인 프로필'], ['2', '세부+맥락', '일치·불일치', '근거 표시'],
+    ['3', '중심·요약', '제목·요지', '1문장 요약'], ['4', '논리관계', '순서·인과·문장삽입', '구조도'],
+    ['5', '감정·의도', '함축·목적', '근거 설명'], ['6', '어휘 운용', '영영·다의·형태', '어휘 네트워크'],
+    ['7', '통합 어법', '복수 문법 판단', '오류 설명'], ['8', '조건 영작', '필수어·어순·형태', '부분점수 답안'],
+    ['9', '복합양식', '표·메시지·포스터', '정보 통합'], ['10', '학교별 기출', '변형률·서술 규칙', '실전 1'],
+    ['11', '누적 모의', '시간 관리', '실전 2'], ['12', '전이·성찰', '오류 데이터', '개인 보완안']]},
+  '중3': {cols: ['주', '축', '내용', '목표'], note: '내신 60 : 고교 대비 40 · 2015 개정 기준', rows: [
+    ['1~2', '2015 내신', '학교별 교과서·기출 진단', '현재 시험 구조 파악'], ['3~4', '문법·구문', '핵심 문법과 긴 문장 해석', '정확성'],
+    ['5~6', '독해', '중심·논리·추론', '고교 브리지'], ['7~8', '서술형', '요약·조건 영작·오류 수정', '부분점수 최대화'],
+    ['9~10', '내신 실전', '교과서·학습지·변형', '학교 적응'], ['11', '듣기·수행', '전국듣기/말하기', '수행 완성'],
+    ['12', '전환', '고교식 어휘·구문·독해', '다음 단계 준비']]},
+  '초3·4': {cols: ['주', '핵심', '활동·산출', '평가'], note: '듣기·말하기 60 : 읽기·쓰기 40', rows: [
+    ['1', '진단·교실영어', '듣고 행동하기, 자기소개 낱말', '관찰'], ['2', '알파벳·소리', '대·소문자 매칭, 소리 찾기', '짧은 확인'],
+    ['3', '사람·사물 묘사', '그림 보고 낱말·어구', '말하기'], ['4', '감정', '표정 카드 질문·대답', '짝 대화'],
+    ['5', '위치', '교실 보물찾기', '행동 반응'], ['6', '중간 누적', '듣기·읽기 게임', '포트폴리오'],
+    ['7', '일과', '그림 순서 말하기', '순서 확인'], ['8', '좋아함', '친구 설문', '질문·대답'],
+    ['9', '문화·이야기', '노래·짧은 이야기', '공감 표현'], ['10', '짧은 읽기', '소리 내어 읽기', '읽기 관찰'],
+    ['11', '통합 프로젝트', '나를 소개하는 미니북', '초안 피드백'], ['12', '공유·성찰', '발표와 자기평가', '총괄 수행']]},
+};
+let grade = '중2';
+function drawPlan(){
+  const p = PLANS[grade];
+  document.getElementById('gradeSeg').innerHTML = Object.keys(PLANS).map(g =>
+    '<button type="button" aria-pressed="' + (g === grade) + '" data-g="' + g + '">' + g + '</button>').join('');
+  for (const b of document.querySelectorAll('#gradeSeg button'))
+    b.onclick = () => { grade = b.dataset.g; drawPlan(); };
+  document.getElementById('planNote').innerHTML = '권장 비중 <b>' + p.note + '</b>';
+  document.getElementById('plan').innerHTML =
+    '<thead><tr>' + p.cols.map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>' +
+    p.rows.map(r => '<tr>' + r.map(c => '<td>' + c + '</td>').join('') + '</tr>').join('') + '</tbody>';
+}
+drawPlan();
+
+// ---------- 시험 역산 ----------
+const BACK = [
+  [6, '성취기준·단원 개념 진단', '시험 범위·평가계획·담당 교사 변화 확인'],
+  [5, '어휘·본문·대화문 이해', '학교 프린트·부교재 확보'],
+  [4, '문법·구문 적용', '최근 기출 유형 정리'],
+  [3, '변형 독해·듣기', '학교형 서술형·신유형'],
+  [2, '누적 서술형·실전', '같은 형식 모의 1~2회'],
+  [1, '오답·회상·시간 관리', '채점 규칙·자주 하는 실수 최종 점검'],
+];
+const dateInput = document.getElementById('examDate');
+const pad = n => String(n).padStart(2, '0');
+const fmtD = d => (d.getMonth() + 1) + '/' + d.getDate();
+function drawBack(){
+  const v = dateInput.value;
+  const exam = v ? new Date(v + 'T00:00:00') : null;
+  document.getElementById('back').innerHTML =
+    '<thead><tr><th>기간</th><th>날짜</th><th>공통으로 할 일</th><th>그 학교에 맞춰 할 일</th></tr></thead><tbody>' +
+    BACK.map(([w, a, b]) => {
+      let range = '—';
+      if (exam){
+        const s = new Date(exam); s.setDate(s.getDate() - w * 7);
+        const e = new Date(exam); e.setDate(e.getDate() - (w - 1) * 7 - 1);
+        range = fmtD(s) + ' ~ ' + fmtD(e);
+      }
+      return '<tr><td>' + w + '주 전</td><td class="nowrap">' + range + '</td><td>' + a + '</td><td>' + b + '</td></tr>';
+    }).join('') + '</tbody>';
+}
+{
+  const d = new Date(); d.setDate(d.getDate() + 42);
+  dateInput.value = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+dateInput.oninput = drawBack;
+drawBack();
+
+// ---------- AI 문항 요청서 ----------
+const form = document.getElementById('genform');
+const MIX = [['m_detail', '세부'], ['m_main', '중심'], ['m_order', '순서·인과'], ['m_infer', '추론'],
+             ['m_vocab', '어휘'], ['m_gram', '어법'], ['m_write', '조건 영작'], ['m_sum', '요약']];
+function drawPrompt(){
+  const f = Object.fromEntries(new FormData(form).entries());
+  const cur = f.grade === '중3' ? '2015 개정' : '2022 개정';
+  const std = f.stdText.trim() || f.std || '(성취기준을 적어주세요)';
+  const mix = MIX.filter(([k]) => +f[k] > 0).map(([k, l]) => l + ' ' + f[k]).join(', ') || '(문항 구성을 정해주세요)';
+  const hasWrite = +f.m_write > 0 || +f.m_sum > 0;
+  document.getElementById('prompt').textContent = [
+    '영어 교재용 문항을 만들어 주세요.',
+    '',
+    '- 대상: ' + f.grade + ' / ' + cur + ' 교육과정',
+    '- 성취기준: ' + std,
+    '- 목표 성취수준: ' + f.level,
+    '- 주제: ' + f.topic,
+    '- 언어 형식: ' + f.lang + (+f.words ? ' / 핵심 어휘 ' + f.words + '개' : ''),
+    '- 지문: ' + f.len + ', 친숙한 주제의 창작 지문. 교과서나 기출 문장을 그대로 쓰지 마세요.',
+    '- 문항 구성: ' + mix,
+    hasWrite ? '- 서술형 채점: 내용과 언어를 나눠 채점하고, 부분점수 기준과 대체 답안을 함께 적어주세요.' : null,
+    '',
+    '문항마다 함께 적어주세요.',
+    '1. 정답 근거 (지문 몇 번째 문장인지)',
+    '2. 오답이 왜 틀렸는지 (주체 혼동, 시간 혼동, 과잉 추론, 어휘 오독 등)',
+    '3. 난도를 그렇게 정한 이유 (어려운 단어가 아니라 정보량·도움 정도로)',
+    '4. 문화·성별·지역·경제 배경 편향 점검 결과',
+    '',
+    '성취기준과 학년 어휘 범위를 벗어나지 말아 주세요.',
+  ].filter(x => x !== null).join('\n');
+}
+form.oninput = drawPrompt;
+drawPrompt();
+document.getElementById('copy').onclick = e => {
+  const t = document.getElementById('prompt').textContent;
+  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject())
+    .then(() => { e.target.textContent = '복사됨'; setTimeout(() => e.target.textContent = '복사', 1500); })
+    .catch(() => { e.target.textContent = '직접 선택해 복사하세요'; });
+};
+
+// ---------- 목차 ----------
+(function(){
+  const links = [...document.querySelectorAll('#toc a')];
+  const secs = links.map(a => document.querySelector(a.getAttribute('href')));
+  const mark = () => {
+    const y = window.scrollY + 120;
+    let cur = 0;
+    secs.forEach((s, i) => { if (s && s.offsetTop <= y) cur = i; });
+    links.forEach((a, i) => a.classList.toggle('on', i === cur));
+  };
+  window.addEventListener('scroll', mark, {passive: true});
+  mark();
+})();
+</script>
+</body>
+</html>
