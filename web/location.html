@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 — supot</title>
-<link rel="stylesheet" href="styles.css?v=22">
+<link rel="stylesheet" href="styles.css?v=23">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -21,6 +21,11 @@
     <div class="field">
       <label for="selA">무엇으로 순위를 매길까요</label>
       <select class="pick" id="selA"></select>
+    </div>
+
+    <div class="field gapf">
+      <span class="lbl">학교·아이는 많은데 영어학원은 적은 곳</span>
+      <div class="seg" id="gapseg"></div>
     </div>
 
     <div class="field">
@@ -82,10 +87,6 @@
 // 전부를 부르는 말이고, 하나는 교습소와 구분되는 법적 종류다. 이름을 갈라 쓰고
 // sub 로 계층을 드러낸다. sub 는 들여쓰기 깊이다.
 const METRICS = [
-  {k:'kids_per_eng',  g:'비교', l:'영어학원 1곳당 아이 수',  u:'명', ratio:true,
-   d:'초4~중3 인구를 영어 학원·교습소 수로 나눈 값입니다. <b>클수록 아이에 비해 학원이 적은 곳</b>입니다. ' +
-     '막대의 세로선(중앙값)보다 길면 보통보다 학원이 적은 편입니다. ' +
-     '학교 재학생이 아니라 그 동네에 <b>사는</b> 아이 기준이고, 영어학원이 한 곳도 없는 곳은 나눌 수 없어 뺐습니다.'},
   {k:'eng_total',     g:'학원', l:'영어 학원·교습소 전체',   u:'곳',
    d:'영어를 가르치는 곳을 <b>모두 합한 수</b>입니다. 아래 학원과 교습소를 더한 값입니다.'},
   {k:'eng_academy',   g:'학원', l:'영어학원',               u:'곳', sub:1,
@@ -114,13 +115,6 @@ const METRICS = [
 ];
 
 // 목록에서만 계층을 보여준다. 그래프 제목이나 열 이름에는 붙이지 않는다.
-// 영어학원이 0곳이면 나눌 수 없다. 그런 곳은 값을 비워두고 따로 센다.
-function addRatios(rows){
-  for (const r of rows)
-    r.kids_per_eng = (r.pop_target != null && r.eng_total > 0)
-      ? Math.round(r.pop_target / r.eng_total) : null;
-}
-
 // 학원 종류: 자료의 값 -> 화면 이름과 핀
 const ACA_KIND = {
   '영어 전문':    {label: '영어만',          pin: 'a1'},
@@ -131,14 +125,14 @@ const kindLabel = k => (ACA_KIND[k] && ACA_KIND[k].label) || k;
 
 const indent = m => m.sub ? '  '.repeat(m.sub) + '└ ' : '';
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '22';
+const V = '23';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
 const UNKNOWN_DONG = '(동 미상)';
 
 const state = {a:'eng_total', cols:['pop_target', 'sch_total'], unit:'dong', region:'all',
-               desc:true, q:'', page:0, hideZero:true, picked:null, tab:'summary', rings:true,
+               desc:true, q:'', page:0, hideZero:true, gap:false, picked:null, tab:'summary', rings:true,
                show:{'초등학교':true, '중학교':true,
                      '영어 전문':true, '영어+타 과목':true, '교습소':true,
                      '아파트':false, '상가':false},
@@ -212,10 +206,27 @@ function median(values){
   return v.length % 2 ? v[m] : Math.round((v[m - 1] + v[m]) / 2);
 }
 
+// 거름망 기준. 지금 보는 단위·지역의 중앙값이다. 우리가 정한 숫자가 아니다.
+let GAP = null;
+
+function gapOf(r){
+  return r.sch_total >= GAP.sch && r.pop_target >= GAP.pop && r.eng_total < GAP.eng;
+}
+
 function rowsFor(){
   // 주소에 동이 없어 못 가른 것들은 지역이 아니므로 순위에서 뺀다.
   let list = DATA[state.unit].filter(r => r.name !== UNKNOWN_DONG);
   if (state.region !== 'all') list = list.filter(r => r.sido === state.region);
+
+  // 검색어와 상관없이 단위·지역 전체로 기준을 잡는다.
+  const base = list.filter(r => r.pop_target !== null && r.pop_target !== undefined);
+  GAP = {
+    sch: median(base.map(r => r.sch_total)),
+    pop: median(base.map(r => r.pop_target)),
+    eng: median(base.map(r => r.eng_total)),
+  };
+  if (state.gap) list = base.filter(gapOf);
+
   if (state.q){
     const q = state.q.trim();
     list = list.filter(r => r.name.includes(q) || (r.parent || '').includes(q));
@@ -282,7 +293,7 @@ function renderDetail(list){
     return out + '</div>';
   }
 
-  const groups = ['비교', '학원', '학교', '인구'].map(g => {
+  const groups = ['학원', '학교', '인구'].map(g => {
     const rows = METRICS.filter(m => m.g === g).map(m => {
       const rank = rankOf(m.k);
       return '<div class="stat' + (m.sub ? ' sub sub' + m.sub : '') + '">' +
@@ -294,16 +305,22 @@ function renderDetail(list){
     return '<div><p class="grp-title">' + g + '</p>' + rows + '</div>';
   }).join('') + estateBlock();
 
-  // 나눗셈 한 번. 점수가 아니라 이 목록의 가운데 값과 견줄 뿐이다.
-  const mine = row.kids_per_eng;
-  const mid = median(list.map(r => r.kids_per_eng));
-  const derived = mine == null ? '' :
-    '<div class="derived">영어학원 1곳당 아이 <b>' + fmt(mine) + '명</b>' +
-    (mid !== null ? ' · 이 목록의 중앙값 <b>' + fmt(mid) + '명</b><br>' +
-      (mine > mid ? '중앙값보다 많습니다. 아이 수에 비해 <b>학원이 적은 편</b>입니다.'
-                  : mine < mid ? '중앙값보다 적습니다. 아이 수에 비해 <b>학원이 많은 편</b>입니다.'
-                               : '중앙값과 같습니다.') : '') +
-    '</div>';
+  // 거름망과 같은 잣대로 이 지역을 견준다.
+  const derived = (!GAP || row.pop_target == null) ? '' : (() => {
+    const chk = (label, v, m, u, wantLow) => {
+      const ok = wantLow ? v < m : v >= m;
+      return '<span class="gchk' + (ok ? ' ok' : '') + '">' + label + ' <b>' + fmt(v) + u + '</b>' +
+             ' <small>중앙값 ' + fmt(m) + u + (ok ? (wantLow ? ' 보다 적음' : ' 이상') : (wantLow ? ' 이상' : ' 보다 적음')) +
+             '</small></span>';
+    };
+    const all = gapOf(row);
+    return '<div class="derived">' +
+      chk('학교', row.sch_total, GAP.sch, '개', false) +
+      chk('아이', row.pop_target, GAP.pop, '명', false) +
+      chk('영어학원', row.eng_total, GAP.eng, '곳', true) +
+      '<p>' + (all ? '<b>학교·아이는 많은데 영어학원은 적은 곳</b>입니다.'
+                   : '세 조건을 다 맞추지는 않습니다.') + '</p></div>';
+  })();
 
   const tab = (k, label, on) =>
     '<button type="button" data-tab="' + k + '"' + (on ? '' : ' disabled') +
@@ -635,6 +652,17 @@ function render(){
           () => state.region, k => state.region = k);
   segment(order,  [{k:'desc', l:'많은 순'}, {k:'asc', l:'적은 순'}],
           () => state.desc ? 'desc' : 'asc', k => state.desc = (k === 'desc'));
+  segment(document.getElementById('gapseg'),
+          [{k:'off', l:'전체 보기'}, {k:'on', l:'이런 곳만'}],
+          () => state.gap ? 'on' : 'off',
+          k => {
+            const on = (k === 'on');
+            // 켤 때는 아이 많은 순으로 놓고 학교·학원을 옆에 둔다. 한눈에 세 조건이 보이게.
+            if (on && !state.gap){
+              state.a = 'pop_target'; state.cols = ['sch_total', 'eng_total']; state.desc = true;
+            }
+            state.gap = on;
+          });
   segment(zero,   [{k:'hide', l:'빼기'}, {k:'show', l:'넣기'}],
           () => state.hideZero ? 'hide' : 'show', k => state.hideZero = (k === 'hide'));
 
@@ -656,7 +684,7 @@ function render(){
 
   count.innerHTML = '지역 <b>' + fmt(list.length) + '</b>개';
   const medA = stats[0].med;
-  sum.innerHTML = (mA.partial || mA.ratio)
+  sum.innerHTML = mA.partial
     ? (medA !== null ? '중앙값 <b>' + fmt(medA) + '</b>' + mA.u : '')
     : '합계 <b>' + fmt(list.reduce((s, r) => s + (r[state.a] || 0), 0)) + '</b>' + mA.u +
       (medA !== null ? ' · 중앙값 <b>' + fmt(medA) + '</b>' + mA.u : '');
@@ -695,13 +723,11 @@ function render(){
   const notes = [];
   if (state.hideZero)
     notes.push('순위 지표가 <b>0인 지역은 빼고</b> 셌습니다. 왼쪽에서 넣을 수 있습니다.');
-  if (state.a === 'kids_per_eng'){
-    const none = DATA[state.unit].filter(r =>
-      r.eng_total === 0 && r.pop_target > 0 &&
-      (state.region === 'all' || r.sido === state.region)).length;
-    if (none) notes.push('영어학원이 <b>한 곳도 없는 지역 ' + fmt(none) + '곳</b>은 나눌 수 없어 뺐습니다. ' +
-                         '「영어 학원·교습소 전체」를 적은 순으로 보면 나옵니다.');
-  }
+  if (state.gap && GAP)
+    notes.push('<b>학교 ' + fmt(GAP.sch) + '개 이상 · 초4~중3 ' + fmt(GAP.pop) + '명 이상 · 영어학원 ' +
+               fmt(GAP.eng) + '곳 미만</b>인 지역만 보입니다. 세 숫자는 지금 보는 ' +
+               (state.region === 'all' ? '서울+경기' : state.region) + ' ' +
+               (state.unit === 'dong' ? '동' : '구·시') + '들의 중앙값(한가운데 값)입니다.');
   if (state.unit === 'dong')
     notes.push('동은 <b>법정동</b>입니다. 주소에 동이 없는 학원 ' +
                fmt(DATA.counts.rows - DATA.counts.dong_parsed) + '건은 목록에서 뺐고, ' +
@@ -722,7 +748,6 @@ fetch('data/regions.json?v=' + V)
   .then(r => r.json())
   .then(d => {
     DATA = d;
-    addRatios(d.gu); addRatios(d.dong);
     basis.textContent = '영어학원 ' + fmt(d.counts.english) + '곳 · 초중학교 ' +
                         fmt(d.counts.schools) + '개교';
     render();

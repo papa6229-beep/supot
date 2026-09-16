@@ -333,3 +333,12 @@ select.add-col{
 .mk.p1,.mk.p2,.mk.p3{--pin-c:var(--pin-p)} .mk.g1,.mk.g2,.mk.g3{--pin-c:var(--pin-g)}
 .mk.open .card span b{color:#0b7a3b}
 
+
+/* 거름망 — 학교·아이는 많은데 영어학원은 적은 곳 */
+.field.gapf{background:#fff4e0; border:1px solid #f3cf8e; border-radius:10px; padding:10px 12px 12px}
+.field.gapf .lbl{color:#7a4a00; font-weight:700}
+.derived .gchk{display:block; margin:2px 0; color:var(--ink-2)}
+.derived .gchk::before{content:'○ '; color:var(--ink-4)}
+.derived .gchk.ok::before{content:'● '; color:#e07a00}
+.derived .gchk small{color:var(--ink-3)}
+.derived p{margin:8px 0 0}
