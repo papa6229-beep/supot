@@ -170,6 +170,8 @@ select.add-col{
 
 .groups{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:26px}
 .grp-title{font-size:13px; color:var(--ink-3); margin:0 0 9px; padding-bottom:7px; border-bottom:1px solid var(--line)}
+.grp-title small{color:var(--ink-4); font-weight:400}
+.stat .v small{font-size:12.5px; font-weight:500; color:var(--ink-2)}
 .stat{display:flex; align-items:baseline; gap:10px; padding:6px 0}
 .stat .k{flex:1; font-size:14px; color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .stat .v{font-size:16px; font-weight:600; font-variant-numeric:tabular-nums}
@@ -218,6 +220,8 @@ select.add-col{
 .maplegend .pin.a1{background:#e4550d; border-radius:50%}
 .maplegend .pin.a2{background:#e4550d; border-radius:50%; opacity:.62}
 .maplegend .pin.a3{background:#e4550d; border-radius:50%; opacity:.38}
+.maplegend .pin.p3{background:#5b3a93; border-radius:2px; width:9px; height:13px}
+.maplegend .pin.g3{background:#0d6b6b; border-radius:2px}
 .maplegend .opt{display:flex; align-items:center; gap:6px; cursor:pointer; margin-left:6px}
 .maplegend .hint{margin-left:auto; color:var(--ink-3); font-variant-numeric:tabular-nums}
 
@@ -241,6 +245,22 @@ select.add-col{
   width:18px; height:18px; margin-left:-9px; background:#10355c;
   border-radius:4px; transform:rotate(45deg);
 }
+/* 부동산 — ㎡당 가격이 높을수록 진하다 */
+.mk[class*="p"]::after, .mk[class*="g"]::after{}
+.mk.p1::after,.mk.p2::after,.mk.p3::after{      /* 아파트 — 세로 사각형 */
+  width:13px; height:19px; margin-left:-6.5px; border-radius:3px;
+}
+.mk.p1::after{background:#c3b3dd}
+.mk.p2::after{background:#8e6fc0}
+.mk.p3::after{background:#5b3a93}
+.mk.g1::after,.mk.g2::after,.mk.g3::after{      /* 상가 — 삼각형 */
+  width:0; height:0; margin-left:-9px; border:0; border-radius:0;
+  border-left:9px solid transparent; border-right:9px solid transparent;
+  box-shadow:none; filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));
+}
+.mk.g1::after{border-bottom:16px solid #9ccfcf}
+.mk.g2::after{border-bottom:16px solid #3c9f9f}
+.mk.g3::after{border-bottom:16px solid #0d6b6b}
 /* 한 건물에 여러 곳이면 개수를 핀 위에 얹는다 */
 .mk[data-n]::before{
   content:attr(data-n); position:absolute; left:50%; bottom:13px;
@@ -282,4 +302,6 @@ select.add-col{
 .mk.open.e .card b{color:#2b6698}
 .mk.open.m .card b{color:#1f4f7a}
 .mk.open.a .card b{color:#b8631f}
+.mk.open[class*="p"] .card b{color:#5b3a93}
+.mk.open[class*="g"] .card b{color:#0d6b6b}
 

@@ -96,15 +96,30 @@ def save(done: dict[str, list[str]]) -> None:
 
 
 def wanted_addresses() -> list[str]:
-    """지도에 찍을 대상의 주소 모음. 같은 주소는 한 번만."""
+    """지도에 찍을 대상의 검색어 모음. 같은 것은 한 번만.
+
+    학원·학교는 도로명주소, 아파트는 '동 + 단지명', 상가는 '동 + 지번'으로 찾는다.
+    카카오는 셋 다 잘 찾는다.
+    """
     sys.path.insert(0, str(ROOT / "build"))
+    import pandas as pd
     from prep import load_academies, load_dongmap, load_schools, known_dongs
 
     known = known_dongs(load_dongmap())
     aca = load_academies(known)
     sch = load_schools(known)
-    addrs = list(aca.loc[aca["영어"], "도로명주소"]) + list(sch["도로명주소"])
-    return sorted({a.strip() for a in addrs if a and a.strip()})
+    out = list(aca.loc[aca["영어"], "도로명주소"]) + list(sch["도로명주소"])
+
+    def add(path: Path, tail: str) -> None:
+        if not path.exists():
+            return
+        df = pd.read_csv(path, dtype=str).fillna("")
+        out.extend(f"{r.구시} {r.동} {getattr(r, tail)}".strip()
+                   for r in df.itertuples() if getattr(r, tail))
+
+    add(ROOT / "data/geo/apt_complexes.csv", "단지")
+    add(ROOT / "data/geo/nrg_buildings.csv", "지번")
+    return sorted({a.strip() for a in out if a and a.strip()})
 
 
 def main(retry: bool) -> None:

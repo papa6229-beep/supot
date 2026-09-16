@@ -87,6 +87,31 @@ def main() -> None:
     for old in OUT_DIR.glob("*.json"):
         old.unlink()
 
+    # --- 부동산(아파트 단지 · 상가 건물)을 같은 동 파일에 얹는다 ----------------
+    estate = []
+    for path, tail, kind in ((ROOT / "data/geo/apt_complexes.csv", "단지", "p"),
+                             (ROOT / "data/geo/nrg_buildings.csv", "지번", "g")):
+        if not path.exists():
+            continue
+        df = pd.read_csv(path, dtype=str).fillna("")
+        for r in df.itertuples():
+            name = getattr(r, tail)
+            xy = coords.get(f"{r.구시} {r.동} {name}".strip())
+            if not name or not xy:
+                continue
+            it = {"n": name, "t": kind, "k": "아파트" if kind == "p" else (r.용도 or "상가"),
+                  "y": int(r.건축년도) if r.건축년도 else None,
+                  "lat": round(xy[0], 6), "lng": round(xy[1], 6),
+                  "m2": int(r.제곱미터당), "p": int(r.금액중간),
+                  "ar": float(r.면적중간), "c": int(r.거래수)}
+            if kind == "g" and r.용도지역:
+                it["z"] = r.용도지역
+            estate.append({"시도": r.시도, "구시": r.구시, "동": r.동, "item": it})
+
+    by_dong = {}
+    for e in estate:
+        by_dong.setdefault((e["시도"], e["구시"], e["동"]), []).append(e["item"])
+
     index = {}
     for (sido, gusi, dong), g in places.groupby(["시도", "구시", "동"], sort=False):
         name = slug(sido, gusi, dong)
@@ -106,6 +131,7 @@ def main() -> None:
                 if r.과정: it["c"] = r.과정          # 교습과정
                 if pd.notna(r.수강료) and r.수강료: it["f"] = int(r.수강료)
             items.append(it)
+        items.extend(by_dong.pop((sido, gusi, dong), []))
         (OUT_DIR / f"{name}.json").write_text(
             json.dumps({"sido": sido, "gusi": gusi, "dong": dong, "items": items},
                        ensure_ascii=False, separators=(",", ":")),
@@ -115,6 +141,14 @@ def main() -> None:
             "a": sum(1 for i in items if i["t"] == "a"),
             "s": sum(1 for i in items if i["t"] == "s"),
         }
+
+    # 학원·학교는 없는데 부동산만 있는 동도 담는다.
+    for (sido, gusi, dong), items in by_dong.items():
+        name = slug(sido, gusi, dong)
+        (OUT_DIR / f"{name}.json").write_text(
+            json.dumps({"sido": sido, "gusi": gusi, "dong": dong, "items": items},
+                       ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+        index[f"{sido}/{gusi}/{dong}"] = {"f": name, "a": 0, "s": 0}
 
     (OUT_DIR / "index.json").write_text(
         json.dumps({"base_ym": BASE_YM, "dongs": index}, ensure_ascii=False,

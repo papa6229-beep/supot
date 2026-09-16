@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 — supot</title>
-<link rel="stylesheet" href="styles.css?v=10">
+<link rel="stylesheet" href="styles.css?v=11">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 </head>
@@ -106,7 +106,7 @@ const METRICS = [
   {k:'pop_mid',       g:'인구', l:'중학생 나이 인구',        u:'명', sub:true, d:'만 12~14세 인구입니다.'},
 ];
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '10';
+const V = '11';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -115,9 +115,11 @@ const UNKNOWN_DONG = '(동 미상)';
 const state = {a:'eng_total', cols:['pop_target', 'sch_total'], unit:'dong', region:'all',
                desc:true, q:'', page:0, hideZero:true, picked:null, tab:'summary', rings:true,
                show:{'초등학교':true, '중학교':true,
-                     '영어 전문':true, '영어+타 과목':true, '교습소':true},
+                     '영어 전문':true, '영어+타 과목':true, '교습소':true,
+                     '아파트':false, '상가':false},
                recentOnly:false};
 let DATA = null;
+let ESTATE = null;   // 부동산 요약. 늦게 와도 화면은 먼저 뜬다.
 
 const fmt = n => (n === null || n === undefined) ? '—' : n.toLocaleString('ko-KR');
 const metric = k => METRICS.find(m => m.k === k);
@@ -220,6 +222,31 @@ function renderDetail(list){
     return list.filter(r => (r[k] ?? -1) > v).length + 1;
   };
 
+  const won = v => v >= 100_000_000
+    ? (v / 100_000_000).toFixed(1).replace(/\.0$/, '') + '억'
+    : Math.round(v / 10_000).toLocaleString('ko-KR') + '만원';
+
+  /** 부동산은 따로 받은 자료라 있을 때만 칸을 만든다. */
+  function estateBlock(){
+    const e = ESTATE && ESTATE.dongs[row.sido + '/' + (row.parent || '') + '/' + row.name];
+    if (!e) return '';
+    const stat = (k, v, extra) =>
+      '<div class="stat"><span class="k">' + k + '</span>' +
+      '<span class="v">' + v + '</span>' +
+      '<span class="r">' + (extra || '') + '</span></div>';
+    let out = '<div><p class="grp-title">부동산 <small>최근 2년</small></p>';
+    if (e.apt)
+      out += stat('아파트 ㎡당', won(e.apt.per_m2)) +
+             stat('아파트 중간 거래가', won(e.apt.price), '전용 ' + e.apt.area + '㎡') +
+             stat('거래 건수', e.apt.n.toLocaleString('ko-KR') + '건', e.apt.complexes + '개 단지');
+    if (e.nrg){
+      out += stat('상가 ㎡당', won(e.nrg.per_m2), '1·2종 근생');
+      const zones = Object.entries(e.nrg.zones).slice(0, 2).map(([k]) => k).join(' · ');
+      if (zones) out += stat('용도지역', '<small>' + zones + '</small>', '');
+    }
+    return out + '</div>';
+  }
+
   const groups = ['학원', '학교', '인구'].map(g => {
     const rows = METRICS.filter(m => m.g === g).map(m => {
       const rank = rankOf(m.k);
@@ -230,7 +257,7 @@ function renderDetail(list){
              '</div>';
     }).join('');
     return '<div><p class="grp-title">' + g + '</p>' + rows + '</div>';
-  }).join('');
+  }).join('') + estateBlock();
 
   // 나눗셈 한 번. 점수를 매기는 게 아니라 규모를 맞춰 비교하는 것이다.
   const per = r => (r.pop_target ? r.eng_total / r.pop_target * 1000 : null);
@@ -249,7 +276,8 @@ function renderDetail(list){
     ? '<div class="maparea"><div id="map"></div>' +
       '<div class="maplegend">' +
         [['초등학교', 'e'], ['중학교', 'm'],
-         ['영어 전문', 'a1'], ['영어+타 과목', 'a2'], ['교습소', 'a3']]
+         ['영어 전문', 'a1'], ['영어+타 과목', 'a2'], ['교습소', 'a3'],
+         ['아파트', 'p3'], ['상가', 'g3']]
           .map(([k, c]) => '<button type="button" class="tg ' + c + '" data-show="' + k + '"' +
                ' aria-pressed="' + state.show[k] + '"><i class="pin ' + c + '"></i>' + k + '</button>').join('') +
         '<label class="opt"><input type="checkbox" id="ringOn"' +
@@ -299,6 +327,13 @@ function loadKakao(){
   });
 }
 
+// ㎡당 거래가 구간. 전체 데이터를 3등분한 값이라 동네가 달라도 같은 잣대가 된다.
+const PRICE_BANDS = [12_000_000, 20_000_000];
+const priceLevel = m2 => m2 >= PRICE_BANDS[1] ? 3 : (m2 >= PRICE_BANDS[0] ? 2 : 1);
+const manwon = v => Math.round(v / 10_000).toLocaleString('ko-KR') + '만원';
+const eok = v => v >= 100_000_000
+  ? (v / 100_000_000).toFixed(1).replace(/\.0$/, '') + '억' : manwon(v);
+
 const SCHOOL_RADIUS = 700;   // 도보 10분 남짓. 학교 반경 원과 같은 값.
 
 function metersBetween(a, b){
@@ -335,6 +370,15 @@ function cardFor(p, all){
     } else {
       line.push('<u>반경 ' + SCHOOL_RADIUS + 'm 안에 영어학원이 없습니다</u>');
     }
+  } else if (p.t === 'p' || p.t === 'g'){
+    const shop = p.t === 'g';
+    line.push([shop ? p.k : '아파트', p.y ? p.y + '년' : null, p.z].filter(Boolean).join(' · '));
+    line.push('<u>㎡당 ' + manwon(p.m2) + '</u>');
+    line.push('중간 거래가 ' + eok(p.p) + ' <small>' +
+              (shop ? '전용' : '전용') + ' ' + p.ar + '㎡</small>');
+    line.push('최근 2년 거래 ' + p.c + '건');
+    if (shop && p.k.includes('근린생활'))
+      line.push('<u>학원이 들어갈 수 있는 용도입니다</u>');
   } else {
     const age = p.y ? (new Date().getFullYear() - p.y + 1) : null;
     line.push([p.k, age ? age + '년차' : null].filter(Boolean).join(' · '));
@@ -403,8 +447,9 @@ function drawMap(row, keepView){
     }
     loadKakao().then(() => {
       const cutoff = new Date().getFullYear() - 3;
+      const showKey = p => p.t === 'p' ? '아파트' : (p.t === 'g' ? '상가' : p.k);
       const pts = data.items.filter(p =>
-        state.show[p.k] !== false &&
+        state.show[showKey(p)] !== false &&
         !(state.recentOnly && p.t === 'a' && (!p.y || p.y < cutoff)));
       if (!pts.length){
         const c = document.getElementById('mapcount');
@@ -443,7 +488,9 @@ function drawMap(row, keepView){
           ring.setMap(mapObj); overlays.push(ring);
         }
         const el = document.createElement('div');
-        const shape = !school ? 'a' : (p.k === '중학교' ? 'm' : 'e');
+        const shape = p.t === 'p' ? 'p' + priceLevel(p.m2)
+                    : p.t === 'g' ? 'g' + priceLevel(p.m2)
+                    : !school ? 'a' : (p.k === '중학교' ? 'm' : 'e');
         el.className = 'mk ' + shape;
         if (group.length > 1) el.dataset.n = group.length;
         el.innerHTML = '<div class="card">' + cardForSpot(group, pts) + '</div>';
@@ -483,8 +530,9 @@ function drawMap(row, keepView){
       lastDong = dongKey;
 
       const c = document.getElementById('mapcount');
-      const shown = '학교 ' + pts.filter(p => p.t === 's').length +
-                    ' · 학원 ' + pts.filter(p => p.t === 'a').length;
+      const n = t => pts.filter(p => p.t === t).length;
+      const shown = [['학교', n('s')], ['학원', n('a')], ['아파트', n('p')], ['상가', n('g')]]
+        .filter(([, v]) => v).map(([k, v]) => k + ' ' + v).join(' · ');
       const all = data.items.length;
       if (c) c.textContent = pts.length === all ? shown : shown + ' (전체 ' + all + '개 중)';
     }).catch(() => {
@@ -594,6 +642,11 @@ fetch('data/regions.json?v=' + V)
     basis.textContent = '영어학원 ' + fmt(d.counts.english) + '곳 · 초중학교 ' +
                         fmt(d.counts.schools) + '개교';
     render();
+    // 부동산은 곁들이는 자료라 따로 받고, 오면 다시 그린다.
+    fetch('data/realestate.json?v=' + V)
+      .then(r => r.ok ? r.json() : null)
+      .then(e => { if (e){ ESTATE = e; render(); } })
+      .catch(() => {});
   })
   .catch(() => { rows.innerHTML = '<div class="none">데이터를 불러오지 못했습니다.</div>'; });
 </script>
