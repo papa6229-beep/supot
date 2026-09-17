@@ -768,3 +768,20 @@ details.dates .dbody{position:absolute; right:0; top:calc(100% + 6px); z-index:5
 body.searching .skip-q{opacity:.4}
 body.searching .skip-q .lbl::after, body.searching .skip-q label::after{content:' · 검색 중 적용 안 함'; font-weight:400; color:var(--ink-3)}
 .tabnote{margin:-4px 0 12px; font-size:12.5px; color:var(--ink-3)}
+
+/* 왼쪽 조건 묶음 */
+.side .fgroup{margin:26px 0 12px; padding-top:14px; border-top:1px dashed var(--line-2);
+  font-size:12.5px; font-weight:700; color:var(--ink-3); letter-spacing:.02em}
+.field .fhint{display:block; margin-top:7px; font-size:12px; line-height:1.45; color:#7a4a00}
+
+/* 적용 중인 조건 */
+.chips{display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:0 0 12px}
+.chips .chl{font-size:12px; color:var(--ink-3); margin-right:2px}
+.chip{display:inline-flex; align-items:center; gap:2px; font-size:13px; font-weight:600; color:var(--ink-2);
+  background:var(--surface); border:1px solid var(--line-2); border-radius:999px; padding:3px 4px 3px 10px; line-height:1.3;
+  min-height:28px; box-sizing:border-box}
+.chip:not(:has(button)){padding-right:10px}
+.chip button{border:0; background:none; cursor:pointer; color:var(--ink-4); font-size:15px; line-height:1;
+  width:20px; height:20px; border-radius:50%; padding:0}
+.chip button:hover{background:#efece6; color:var(--ink)}
+.chip.off{opacity:.45; text-decoration:line-through}

@@ -6,14 +6,14 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 분석 — Chalkmap</title>
-<link rel="stylesheet" href="styles.css?v=49">
+<link rel="stylesheet" href="styles.css?v=50">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 <script>
 // 브라우저가 옛 화면을 붙잡고 있으면 새 버전으로 한 번 다시 불러온다.
 // 올릴 때마다 이 숫자와 version.json 을 같이 올린다.
 (function(){
-  var PAGE_V = '49';
+  var PAGE_V = '50';
   fetch('version.json?t=' + Date.now(), {cache: 'no-store'})
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(d){
@@ -40,15 +40,13 @@
     <button type="button" class="reset" id="reset" hidden>조건 모두 지우기</button>
     <p class="where" id="basis"></p>
 
-    <div class="field normal-only">
-      <label for="selA">무엇으로 순위를 매길까요</label>
-      <select class="pick" id="selA"></select>
+    <div class="field gapf">
+      <span class="lbl">보기 방식</span>
+      <div class="seg" id="gapseg"></div>
+      <small class="fhint" id="gaphint"></small>
     </div>
 
-    <div class="field normal-only">
-      <span class="lbl">나란히 비교할 것</span>
-      <div class="cols" id="cols"></div>
-    </div>
+    <p class="fgroup">어디를 볼까요</p>
 
     <div class="field">
       <span class="lbl">단위</span>
@@ -65,9 +63,16 @@
       <select class="pick" id="mkt"></select>
     </div>
 
-    <div class="field gapf">
-      <span class="lbl">학교·아이 수에 비해 영어학원이 적은 곳</span>
-      <div class="seg" id="gapseg"></div>
+    <p class="fgroup normal-only">무엇을 볼까요</p>
+
+    <div class="field normal-only">
+      <label for="selA">무엇으로 순위를 매길까요</label>
+      <select class="pick" id="selA"></select>
+    </div>
+
+    <div class="field normal-only">
+      <span class="lbl">나란히 비교할 것</span>
+      <div class="cols" id="cols"></div>
     </div>
 
     <div class="field normal-only">
@@ -88,6 +93,8 @@
       <span class="basis">2026년 8월 기준 · 서울 + 경기</span>
       <details class="dates" data-dates><summary>자료 기준일</summary></details>
     </div>
+
+    <div class="chips" id="chips"></div>
 
     <div class="explain" id="explain"></div>
 
@@ -164,7 +171,7 @@ const kindLabel = k => (ACA_KIND[k] && ACA_KIND[k].label) || k;
 
 const indent = m => m.sub ? '  '.repeat(m.sub) + '└ ' : '';
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '49';
+const V = '50';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -1291,8 +1298,11 @@ function render(){
   segment(order,  [{k:'desc', l:'많은 순'}, {k:'asc', l:'적은 순'}],
           () => state.desc ? 'desc' : 'asc', k => state.desc = (k === 'desc'));
   segment(document.getElementById('gapseg'),
-          [{k:'off', l:'기본 보기'}, {k:'on', l:'학원 적은 순'}],
+          [{k:'off', l:'지표별 순위'}, {k:'on', l:'학원 적은 곳'}],
           () => state.gap ? 'on' : 'off', k => state.gap = (k === 'on'));
+  document.getElementById('gaphint').textContent = state.gap
+    ? '학교·아이 수에 비해 영어학원이 적은 지역부터 나열합니다.'
+    : '고른 지표로 지역을 줄 세웁니다.';
   document.body.classList.toggle('few-mode', state.gap);
   // 학원 적은 순에서는 지역 범위가 보통의 기준이라 검색 중에도 쓴다.
   document.body.classList.toggle('searching', !!state.q.trim() && !state.gap);
@@ -1303,6 +1313,7 @@ function render(){
   const touched = state.a || state.gap || state.mkt || state.q || state.region !== '서울' ||
                   state.unit !== 'dong' || !state.desc || !state.hideZero;
   document.getElementById('reset').hidden = !touched;
+  renderChips();
 
   if (state.gap){ document.body.classList.remove('blank-mode'); renderFew(); return; }
   if (!state.a && !state.q.trim()){ renderBlank(); return; }
@@ -1387,6 +1398,41 @@ function render(){
   note.innerHTML = notes.join('<br>');
 }
 
+// 지금 걸린 조건을 표 위에 한 줄로 보여준다. ×를 누르면 그 조건만 기본값으로 돌린다.
+// 검색 중에는 적용하지 않는 조건을 흐리게 둔다.
+function renderChips(){
+  const box = document.getElementById('chips');
+  const q = state.q.trim();
+  const skip = !!q && !state.gap;
+  const unitName = {dong: '동', gu: '구·시', hub: '학원가'};
+  const regionName = {'서울': '서울', '경기': '경기', all: '서울+경기'};
+  const list = [];
+  const add = (text, clear, off) => list.push({text, clear, off});
+  if (q) add('검색 「' + q + '」', () => { state.q = ''; document.getElementById('q').value = ''; });
+  if (state.gap) add('학원 적은 곳', () => { state.gap = false; });
+  add(unitName[state.unit], state.unit === 'dong' ? null : () => { state.unit = 'dong'; });
+  add(regionName[state.region], state.region === '서울' ? null : () => { state.region = '서울'; }, skip);
+  if (state.mkt && MARKET && state.unit === 'dong'){
+    const [kind, val] = state.mkt.split(':');
+    add('시장 유형 ' + (kind === 'type' ? val + ' ' + MARKET.types[val].name : val),
+        () => { state.mkt = ''; }, state.gap ? !!q : skip);
+  }
+  if (!state.gap){
+    if (state.a) add('순위 ' + metric(state.a).l, () => { state.a = ''; state.cols = []; });
+    for (const k of state.cols)
+      add('비교 ' + metric(k).l, () => { state.cols = state.cols.filter(x => x !== k); });
+    if (state.a || q) add(state.desc ? '많은 순' : '적은 순', state.desc ? null : () => { state.desc = true; });
+    if (state.a && !metric(state.a).keepZero && state.hideZero)
+      add('0곳 빼기', () => { state.hideZero = false; }, skip);
+  }
+  box.innerHTML = '<span class="chl">적용 중</span>' + list.map((c, i) =>
+    '<span class="chip' + (c.off ? ' off' : '') + '"' + (c.off ? ' title="검색 중에는 적용하지 않습니다"' : '') + '>' +
+      c.text + (c.clear ? '<button type="button" data-i="' + i + '" aria-label="' + c.text + ' 풀기">×</button>' : '') +
+    '</span>').join('');
+  for (const b of box.querySelectorAll('button[data-i]'))
+    b.onclick = () => { list[+b.dataset.i].clear(); state.page = 0; render(); };
+}
+
 /** 아무 지표도 고르지 않은 첫 화면. 표의 틀은 그대로 두고 내용만 비워 둔다. */
 function renderBlank(){
   document.body.classList.add('blank-mode');
@@ -1442,7 +1488,7 @@ function renderFew(){
     '<span>영어학원</span><span><b>보통 대비</b>&nbsp;<small>가운데 선 = 100%</small></span></div>';
   if (!slice.length){
     html += '<div class="none">' + (state.q.trim()
-      ? '「' + state.q.trim() + '」은(는) 이 목록에 없습니다.<br>' + where + ' 안에서 학교 수와 아이 수가 둘 다 보통 이상인 지역만 줄 세우기 때문입니다.<br>지역 범위를 바꾸거나 「기본 보기」에서 검색해 보세요.'
+      ? '「' + state.q.trim() + '」은(는) 이 목록에 없습니다.<br>' + where + ' 안에서 학교 수와 아이 수가 둘 다 보통 이상인 지역만 줄 세우기 때문입니다.<br>지역 범위를 바꾸거나 「지표별 순위」에서 검색해 보세요.'
       : '해당하는 지역이 없습니다.<br>지역 범위를 넓혀보세요.') + '</div>';
   } else {
     slice.forEach((r, i) => {
@@ -1540,6 +1586,6 @@ fetch('data/regions.json?v=' + V)
   })
   .catch(() => { rows.innerHTML = '<div class="none">데이터를 불러오지 못했습니다.</div>'; });
 </script>
-<script src="dates.js?v=49"></script>
+<script src="dates.js?v=50"></script>
 </body>
 </html>
