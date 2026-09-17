@@ -6,14 +6,14 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>입지 · 상권 분석 — Chalkmap</title>
-<link rel="stylesheet" href="styles.css?v=48">
+<link rel="stylesheet" href="styles.css?v=49">
 <!-- 카카오맵 JavaScript 키. 등록된 도메인에서만 동작하도록 잠겨 있다. -->
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=0d6d1f6f1bf11cb9d1c630cf365f8a2c&autoload=false"></script>
 <script>
 // 브라우저가 옛 화면을 붙잡고 있으면 새 버전으로 한 번 다시 불러온다.
 // 올릴 때마다 이 숫자와 version.json 을 같이 올린다.
 (function(){
-  var PAGE_V = '48';
+  var PAGE_V = '49';
   fetch('version.json?t=' + Date.now(), {cache: 'no-store'})
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(d){
@@ -55,12 +55,12 @@
       <div class="seg" id="unit"></div>
     </div>
 
-    <div class="field">
+    <div class="field skip-q">
       <span class="lbl">지역</span>
       <div class="seg" id="region"></div>
     </div>
 
-    <div class="field" id="mktfield" style="display:none">
+    <div class="field skip-q" id="mktfield" style="display:none">
       <label for="mkt">시장 유형 <small>동 단위 · 서울+인접 경기</small></label>
       <select class="pick" id="mkt"></select>
     </div>
@@ -75,7 +75,7 @@
       <div class="seg" id="order"></div>
     </div>
 
-    <div class="field normal-only">
+    <div class="field normal-only skip-q">
       <span class="lbl">0곳인 지역</span>
       <div class="seg" id="zero"></div>
     </div>
@@ -164,7 +164,7 @@ const kindLabel = k => (ACA_KIND[k] && ACA_KIND[k].label) || k;
 
 const indent = m => m.sub ? '  '.repeat(m.sub) + '└ ' : '';
 // 자료를 갱신하면 올린다. HTML의 styles.css?v= 도 같이 올릴 것.
-const V = '48';
+const V = '49';
 const PER_PAGE = 10;
 const MAX_COLS = 4;
 const BAR_COLORS = ['#2e7d68', '#6f93ab', '#a8906c', '#8f7f9c', '#7d9a6b'];
@@ -642,8 +642,8 @@ function scopeRows(row){
 }
 
 const qMatch = r => {
-  const q = state.q.trim();
-  return r.name.includes(q) || (r.parent || '').includes(q);
+  const hay = r.name + ' ' + (r.parent || '');
+  return state.q.trim().split(/\s+/).every(w => hay.includes(w));
 };
 
 function rowsFor(){
@@ -764,6 +764,9 @@ function renderDetail(list){
     return;
   }
   state.picked = keyOf(row);
+  // 학원 목록·지도·시장 해석은 동과 학원가에만 있다.
+  const fine = state.unit !== 'gu';
+  if (!fine) state.tab = 'summary';
 
   // 이 지역이 전체에서 몇 번째인지 — 지표마다 따로 센다.
   // 검색어·시장 유형·0곳 거르기로 줄어든 목록이 아니라, 지역 범위 전체에서 센다.
@@ -771,7 +774,7 @@ function renderDetail(list){
   const rankOf = k => {
     const v = row[k];
     if (v === null || v === undefined) return null;
-    return rankBase.filter(r => (r[k] ?? -1) > v).length + 1;
+    return rankBase.filter(r => r[k] !== null && r[k] !== undefined && r[k] > v).length + 1;
   };
   const rankScope = (rankBase.length && rankBase.every(r => r.sido === rankBase[0].sido) ? rankBase[0].sido : '서울+경기') +
     ' ' + {dong: '동', gu: '구·시', hub: '학원가'}[state.unit] + ' ' + fmt(rankBase.length) + '곳 중 순위';
@@ -882,7 +885,8 @@ function renderDetail(list){
                : row.parent ? '<span class="p">' + row.parent + '</span>' : '') +
       '<span class="lead">영어학원 <b>' + fmt(row.eng_total) + '</b>곳</span></div>' +
     '<div class="tabs">' + tab('summary', '요약', true) +
-      tab('list', '학원 목록', true) + tab('map', '지도', true) + tab('market', '시장 해석', true) + '</div>' +
+      tab('list', '학원 목록', fine) + tab('map', '지도', fine) + tab('market', '시장 해석', fine) + '</div>' +
+      (fine ? '' : '<p class="tabnote">학원 목록 · 지도 · 시장 해석은 단위를 <b>동</b>이나 <b>학원가</b>로 바꾸면 볼 수 있습니다.</p>') +
     '<div class="dbody">' + body + '</div>';
 
   for (const b of detail.querySelectorAll('.tabs button[data-tab]'))
@@ -1290,6 +1294,8 @@ function render(){
           [{k:'off', l:'기본 보기'}, {k:'on', l:'학원 적은 순'}],
           () => state.gap ? 'on' : 'off', k => state.gap = (k === 'on'));
   document.body.classList.toggle('few-mode', state.gap);
+  // 학원 적은 순에서는 지역 범위가 보통의 기준이라 검색 중에도 쓴다.
+  document.body.classList.toggle('searching', !!state.q.trim() && !state.gap);
   fillMarket();
   segment(zero,   [{k:'hide', l:'빼기'}, {k:'show', l:'넣기'}],
           () => state.hideZero ? 'hide' : 'show', k => state.hideZero = (k === 'hide'));
@@ -1534,6 +1540,6 @@ fetch('data/regions.json?v=' + V)
   })
   .catch(() => { rows.innerHTML = '<div class="none">데이터를 불러오지 못했습니다.</div>'; });
 </script>
-<script src="dates.js?v=48"></script>
+<script src="dates.js?v=49"></script>
 </body>
 </html>
